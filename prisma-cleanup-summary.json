@@ -1,0 +1,16 @@
+{
+  "cleanupDate": "2025-09-28T00:04:07.383Z",
+  "removedFiles": [
+    "prisma/schema.prisma",
+    "prisma/seed.ts",
+    "prisma",
+    "lib/db.ts",
+    "node_modules/.prisma"
+  ],
+  "removedDependencies": [
+    "prisma",
+    "@prisma/client"
+  ],
+  "errors": [],
+  "success": true
+}
