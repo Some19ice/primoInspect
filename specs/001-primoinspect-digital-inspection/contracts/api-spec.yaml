@@ -1,0 +1,1045 @@
+openapi: 3.0.3
+info:
+  title: PrimoInspect Digital Inspection Platform API
+  description: REST API for renewable energy inspection management with mobile-first design
+  version: 1.0.0
+  contact:
+    name: PrimoInspect API Support
+    email: api@primoinspect.com
+
+servers:
+  - url: https://api.primoinspect.com/v1
+    description: Production server
+  - url: http://localhost:3000/api
+    description: Development server
+
+paths:
+  # Project Management
+  /projects:
+    get:
+      summary: List projects for authenticated user
+      tags: [Projects]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [active, completed, on-hold, cancelled]
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: List of projects
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  projects:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Project"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+        "401":
+          $ref: "#/components/responses/Unauthorized"
+
+    post:
+      summary: Create new project (Project Manager only)
+      tags: [Projects]
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateProject"
+      responses:
+        "201":
+          description: Project created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "403":
+          $ref: "#/components/responses/Forbidden"
+
+  /projects/{projectId}:
+    get:
+      summary: Get project details
+      tags: [Projects]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Project details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Project"
+        "404":
+          $ref: "#/components/responses/NotFound"
+
+  /projects/{projectId}/dashboard:
+    get:
+      summary: Get role-based project dashboard
+      tags: [Dashboards]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: projectId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+        - name: role
+          in: query
+          schema:
+            type: string
+            enum: [executive, project-manager, inspector]
+      responses:
+        "200":
+          description: Dashboard data tailored to user role
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Dashboard"
+
+  # Inspection Management
+  /inspections:
+    get:
+      summary: List inspections with filters
+      tags: [Inspections]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [draft, pending, in-review, approved, rejected]
+        - name: assignedTo
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: List of inspections
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  inspections:
+                    type: array
+                    items:
+                      $ref: "#/components/schemas/Inspection"
+                  pagination:
+                    $ref: "#/components/schemas/Pagination"
+
+    post:
+      summary: Create inspection assignment
+      tags: [Inspections]
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateInspection"
+      responses:
+        "201":
+          description: Inspection created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inspection"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+
+  /inspections/{inspectionId}:
+    get:
+      summary: Get inspection details with evidence
+      tags: [Inspections]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Inspection with evidence and timeline
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/InspectionDetail"
+
+    put:
+      summary: Update inspection (submit responses)
+      tags: [Inspections]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateInspection"
+      responses:
+        "200":
+          description: Inspection updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Inspection"
+
+  /inspections/{inspectionId}/approve:
+    post:
+      summary: Approve or reject inspection
+      tags: [Approvals]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [decision, notes]
+              properties:
+                decision:
+                  type: string
+                  enum: [approved, rejected]
+                notes:
+                  type: string
+                  minLength: 1
+                  maxLength: 1000
+      responses:
+        "200":
+          description: Approval recorded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Approval"
+        "400":
+          $ref: "#/components/responses/BadRequest"
+        "409":
+          description: Inspection already approved/rejected
+
+  # Evidence Management
+  /inspections/{inspectionId}/evidence:
+    get:
+      summary: List evidence for inspection
+      tags: [Evidence]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: List of evidence files
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Evidence"
+
+    post:
+      summary: Upload evidence file
+      tags: [Evidence]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: inspectionId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      requestBody:
+        required: true
+        content:
+          multipart/form-data:
+            schema:
+              type: object
+              required: [file]
+              properties:
+                file:
+                  type: string
+                  format: binary
+                  description: Evidence file (max 50MB)
+                location:
+                  type: object
+                  properties:
+                    latitude:
+                      type: number
+                    longitude:
+                      type: number
+                    accuracy:
+                      type: number
+                annotations:
+                  type: string
+                  description: JSON array of annotations
+      responses:
+        "201":
+          description: Evidence uploaded
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Evidence"
+        "413":
+          description: File too large (max 50MB)
+
+  # Reporting
+  /reports:
+    get:
+      summary: List available reports
+      tags: [Reports]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: projectId
+          in: query
+          schema:
+            type: string
+            format: uuid
+        - name: type
+          in: query
+          schema:
+            type: string
+            enum: [compliance, summary, progress, custom]
+      responses:
+        "200":
+          description: List of reports
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Report"
+
+    post:
+      summary: Generate new report
+      tags: [Reports]
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateReport"
+      responses:
+        "202":
+          description: Report generation started
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  /reports/{reportId}:
+    get:
+      summary: Get report details and download URL
+      tags: [Reports]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: reportId
+          in: path
+          required: true
+          schema:
+            type: string
+            format: uuid
+      responses:
+        "200":
+          description: Report details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Report"
+
+  # User Management
+  /users/me:
+    get:
+      summary: Get current user profile
+      tags: [Users]
+      security:
+        - sessionAuth: []
+      responses:
+        "200":
+          description: User profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+
+  /notifications:
+    get:
+      summary: Get user notifications
+      tags: [Notifications]
+      security:
+        - sessionAuth: []
+      parameters:
+        - name: unreadOnly
+          in: query
+          schema:
+            type: boolean
+            default: false
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            minimum: 1
+            maximum: 50
+            default: 20
+      responses:
+        "200":
+          description: List of notifications
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Notification"
+
+    patch:
+      summary: Mark notifications as read
+      tags: [Notifications]
+      security:
+        - sessionAuth: []
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required: [notificationIds]
+              properties:
+                notificationIds:
+                  type: array
+                  items:
+                    type: string
+                    format: uuid
+      responses:
+        "200":
+          description: Notifications marked as read
+
+components:
+  securitySchemes:
+    sessionAuth:
+      type: apiKey
+      in: cookie
+      name: next-auth.session-token
+
+  schemas:
+    Project:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        name:
+          type: string
+          maxLength: 100
+        description:
+          type: string
+        status:
+          type: string
+          enum: [active, completed, on-hold, cancelled]
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        location:
+          $ref: "#/components/schemas/Location"
+        teamMembers:
+          type: array
+          items:
+            type: string
+            format: uuid
+          maxItems: 10
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateProject:
+      type: object
+      required: [name, startDate, location]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+        description:
+          type: string
+        startDate:
+          type: string
+          format: date
+        endDate:
+          type: string
+          format: date
+        location:
+          $ref: "#/components/schemas/Location"
+
+    Inspection:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        checklistId:
+          type: string
+          format: uuid
+        assignedTo:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        description:
+          type: string
+        status:
+          type: string
+          enum: [draft, pending, in-review, approved, rejected]
+        priority:
+          type: string
+          enum: [low, medium, high]
+        dueDate:
+          type: string
+          format: date
+        location:
+          $ref: "#/components/schemas/Location"
+        rejectionCount:
+          type: integer
+          minimum: 0
+          maximum: 2
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+        submittedAt:
+          type: string
+          format: date-time
+        completedAt:
+          type: string
+          format: date-time
+
+    InspectionDetail:
+      allOf:
+        - $ref: "#/components/schemas/Inspection"
+        - type: object
+          properties:
+            responses:
+              type: object
+            evidence:
+              type: array
+              items:
+                $ref: "#/components/schemas/Evidence"
+            approvals:
+              type: array
+              items:
+                $ref: "#/components/schemas/Approval"
+            timeline:
+              type: array
+              items:
+                $ref: "#/components/schemas/TimelineEvent"
+
+    CreateInspection:
+      type: object
+      required: [projectId, checklistId, assignedTo, title]
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        checklistId:
+          type: string
+          format: uuid
+        assignedTo:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        description:
+          type: string
+        priority:
+          type: string
+          enum: [low, medium, high]
+          default: medium
+        dueDate:
+          type: string
+          format: date
+
+    UpdateInspection:
+      type: object
+      properties:
+        responses:
+          type: object
+        location:
+          $ref: "#/components/schemas/Location"
+        status:
+          type: string
+          enum: [draft, pending]
+
+    Evidence:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inspectionId:
+          type: string
+          format: uuid
+        uploadedBy:
+          type: string
+          format: uuid
+        filename:
+          type: string
+        originalName:
+          type: string
+        mimeType:
+          type: string
+        fileSize:
+          type: integer
+          maximum: 52428800 # 50MB
+        url:
+          type: string
+          format: uri
+        thumbnailUrl:
+          type: string
+          format: uri
+        location:
+          $ref: "#/components/schemas/Location"
+        timestamp:
+          type: string
+          format: date-time
+        verified:
+          type: boolean
+        annotations:
+          type: array
+          items:
+            type: object
+            properties:
+              x:
+                type: number
+              y:
+                type: number
+              text:
+                type: string
+        createdAt:
+          type: string
+          format: date-time
+
+    Approval:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        inspectionId:
+          type: string
+          format: uuid
+        approverId:
+          type: string
+          format: uuid
+        decision:
+          type: string
+          enum: [approved, rejected]
+        notes:
+          type: string
+          minLength: 1
+          maxLength: 1000
+        reviewDate:
+          type: string
+          format: date-time
+        isEscalated:
+          type: boolean
+        escalationReason:
+          type: string
+        previousApprovalId:
+          type: string
+          format: uuid
+        createdAt:
+          type: string
+          format: date-time
+
+    Report:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          maxLength: 200
+        type:
+          type: string
+          enum: [compliance, summary, progress, custom]
+        status:
+          type: string
+          enum: [generating, ready, error]
+        format:
+          type: string
+          enum: [pdf, excel, csv]
+        url:
+          type: string
+          format: uri
+        generatedBy:
+          type: string
+          format: uuid
+        generatedAt:
+          type: string
+          format: date-time
+        expiresAt:
+          type: string
+          format: date-time
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateReport:
+      type: object
+      required: [projectId, title, type, format]
+      properties:
+        projectId:
+          type: string
+          format: uuid
+        title:
+          type: string
+          minLength: 1
+          maxLength: 200
+        type:
+          type: string
+          enum: [compliance, summary, progress, custom]
+        format:
+          type: string
+          enum: [pdf, excel, csv]
+        filters:
+          type: object
+          properties:
+            dateRange:
+              type: object
+              properties:
+                start:
+                  type: string
+                  format: date
+                end:
+                  type: string
+                  format: date
+            inspectionStatus:
+              type: array
+              items:
+                type: string
+            assignedTo:
+              type: array
+              items:
+                type: string
+                format: uuid
+
+    User:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        email:
+          type: string
+          format: email
+        name:
+          type: string
+          maxLength: 100
+        role:
+          type: string
+          enum: [executive, project-manager, inspector]
+        avatar:
+          type: string
+          format: uri
+        isActive:
+          type: boolean
+        projectIds:
+          type: array
+          items:
+            type: string
+            format: uuid
+        permissions:
+          type: object
+          properties:
+            canCreateProjects:
+              type: boolean
+            canApproveInspections:
+              type: boolean
+            canViewReports:
+              type: boolean
+            canManageTeam:
+              type: boolean
+        createdAt:
+          type: string
+          format: date-time
+        lastLoginAt:
+          type: string
+          format: date-time
+
+    Notification:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        userId:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum:
+            [
+              assignment,
+              status-change,
+              approval-required,
+              escalation,
+              report-ready,
+            ]
+        title:
+          type: string
+          maxLength: 100
+        message:
+          type: string
+          maxLength: 500
+        relatedEntityType:
+          type: string
+          enum: [inspection, project, approval, report]
+        relatedEntityId:
+          type: string
+          format: uuid
+        isRead:
+          type: boolean
+        priority:
+          type: string
+          enum: [low, medium, high]
+        createdAt:
+          type: string
+          format: date-time
+
+    Dashboard:
+      type: object
+      properties:
+        kpis:
+          type: object
+          properties:
+            totalInspections:
+              type: integer
+            pendingApprovals:
+              type: integer
+            completedThisWeek:
+              type: integer
+            overdueInspections:
+              type: integer
+        recentActivity:
+          type: array
+          items:
+            $ref: "#/components/schemas/TimelineEvent"
+        charts:
+          type: object
+          properties:
+            inspectionTrends:
+              type: array
+              items:
+                type: object
+                properties:
+                  date:
+                    type: string
+                    format: date
+                  count:
+                    type: integer
+            statusDistribution:
+              type: object
+              additionalProperties:
+                type: integer
+
+    TimelineEvent:
+      type: object
+      properties:
+        id:
+          type: string
+          format: uuid
+        type:
+          type: string
+          enum: [created, submitted, approved, rejected, escalated]
+        description:
+          type: string
+        userId:
+          type: string
+          format: uuid
+        userName:
+          type: string
+        timestamp:
+          type: string
+          format: date-time
+        metadata:
+          type: object
+
+    Location:
+      type: object
+      required: [latitude, longitude]
+      properties:
+        latitude:
+          type: number
+          minimum: -90
+          maximum: 90
+        longitude:
+          type: number
+          minimum: -180
+          maximum: 180
+        accuracy:
+          type: number
+          minimum: 0
+        address:
+          type: string
+
+    Pagination:
+      type: object
+      properties:
+        page:
+          type: integer
+          minimum: 1
+        limit:
+          type: integer
+          minimum: 1
+          maximum: 50
+        total:
+          type: integer
+          minimum: 0
+        hasNext:
+          type: boolean
+        hasPrev:
+          type: boolean
+
+    Error:
+      type: object
+      properties:
+        error:
+          type: string
+        message:
+          type: string
+        code:
+          type: string
+        details:
+          type: object
+
+  responses:
+    BadRequest:
+      description: Bad request
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Unauthorized:
+      description: Unauthorized
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    Forbidden:
+      description: Forbidden
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+    NotFound:
+      description: Resource not found
+      content:
+        application/json:
+          schema:
+            $ref: "#/components/schemas/Error"
+
+tags:
+  - name: Projects
+    description: Project management operations
+  - name: Inspections
+    description: Inspection lifecycle management
+  - name: Evidence
+    description: Evidence upload and verification
+  - name: Approvals
+    description: Approval workflow operations
+  - name: Reports
+    description: Report generation and export
+  - name: Dashboards
+    description: Role-based dashboard data
+  - name: Users
+    description: User profile management
+  - name: Notifications
+    description: Notification system
+
+
