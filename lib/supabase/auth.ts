@@ -42,36 +42,65 @@ export class SupabaseAuthService {
   }
 
   async getProfile(userId?: string): Promise<{ profile: Profile | null; error: any }> {
-    const { data: { user } } = await supabase.auth.getUser()
-    const targetUserId = userId || user?.id
+    try {
+      const { data: { user } } = await supabase.auth.getUser()
 
-    if (!targetUserId) {
-      return { profile: null, error: 'No user found' }
+      if (!user) {
+        return { profile: null, error: 'No user found' }
+      }
+
+      const targetUserId = userId || user.id
+
+      // Get profile with proper RLS policies in place
+      const { data: profile, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('id', targetUserId)
+        .maybeSingle()
+
+      if (error) {
+        console.warn('Profile fetch failed:', error.message)
+        return { profile: null, error }
+      }
+
+      if (!profile) {
+        // Profile doesn't exist, create a fallback from user metadata
+        const fallbackProfile: Profile = {
+          id: user.id,
+          email: user.email || '',
+          name: user.user_metadata?.name || user.email?.split('@')[0] || 'User',
+          role: user.user_metadata?.role || 'PROJECT_MANAGER',
+          avatar: null,
+          is_active: true,
+          created_at: user.created_at,
+          updated_at: new Date().toISOString(),
+          last_login_at: new Date().toISOString()
+        }
+
+        return { profile: fallbackProfile, error: null }
+      }
+
+      return { profile, error: null }
+    } catch (error) {
+      console.error('Error in getProfile:', error)
+      return { profile: null, error }
     }
-
-    const { data: profile, error } = await supabase
-      .from('profiles')
-      .select('*')
-      .eq('id', targetUserId)
-      .single()
-
-    return { profile, error }
   }
 
   async updateProfile(updates: Partial<Omit<Profile, 'id' | 'created_at'>>) {
     const { data: { user } } = await supabase.auth.getUser()
-    
+
     if (!user) {
       return { data: null, error: 'No user found' }
     }
 
     const { data, error } = await (supabase as any)
       .from('profiles')
-      .update({
+      .upsert({
+        id: user.id,
         ...updates,
         updated_at: new Date().toISOString()
       })
-      .eq('id', user.id)
       .select()
       .single()
 

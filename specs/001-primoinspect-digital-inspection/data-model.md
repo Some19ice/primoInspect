@@ -854,3 +854,6 @@ const ReportSchema = z.object({
 This data model supports the constitutional requirements for mobile-first experience, role-oriented UX, evidence-driven decisions, and simplicity while maintaining the clarified scale and performance expectations.
 
 
+
+
+

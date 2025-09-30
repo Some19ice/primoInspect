@@ -71,13 +71,18 @@ export function useSupabaseAuth() {
         console.log('Auth state changed:', event, session?.user?.id)
 
         if (session?.user) {
-          const { profile } = await supabaseAuth.getProfile()
-          setAuthState({
-            user: session.user,
-            profile,
-            session,
-            loading: false,
-          })
+          // Add a small delay to ensure the session is fully established
+          setTimeout(async () => {
+            if (!mounted) return
+            
+            const { profile } = await supabaseAuth.getProfile()
+            setAuthState({
+              user: session.user,
+              profile,
+              session,
+              loading: false,
+            })
+          }, 100)
         } else {
           setAuthState({
             user: null,

@@ -1,5 +1,145 @@
 import { supabase } from './client'
+import { createServerClient } from '@supabase/ssr'
 import { Database } from './types'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import page from '@/app/page'
+import { number } from 'zod'
+import { number } from 'zod'
+import page from '@/app/page'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { boolean } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { boolean } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { error } from 'console'
+import { number } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { any } from 'zod'
+import { any } from 'zod'
+import { boolean } from 'zod'
+import { string } from 'zod'
+import { any } from 'zod'
+import { string } from 'zod'
+import { number } from 'zod'
+import { number } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { any } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import page from '@/app/page'
+import { number } from 'zod'
+import { number } from 'zod'
+import page from '@/app/page'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { boolean } from 'zod'
+import { string } from 'zod'
+import { any } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { number } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { number } from 'zod'
+import { number } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import { string } from 'zod'
+import page from '@/app/page'
+import page from '@/app/page'
+
+// Create service role client for server-side operations (only call on server)
+function createServiceRoleClient() {
+  if (typeof window !== 'undefined') {
+    throw new Error('Service role client should only be used on server side')
+  }
+
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      },
+      cookies: {
+        get: () => undefined,
+        set: () => { },
+        remove: () => { }
+      }
+    }
+  )
+}
 
 type Tables = Database['public']['Tables']
 type Profile = Tables['profiles']['Row']
@@ -46,22 +186,46 @@ export class SupabaseDatabaseService {
   async getProjectsForUser(userId: string, page: number = 1, limit: number = 20) {
     const offset = (page - 1) * limit
 
-    // Get projects where user is a member with role-based access
+    // First get project IDs where user is a member
+    const { data: memberProjects, error: memberError } = await supabase
+      .from('project_members')
+      .select('project_id, role')
+      .eq('user_id', userId)
+
+    if (memberError) {
+      return {
+        data: [],
+        error: memberError,
+        pagination: { page, limit, total: 0, hasNext: false, hasPrev: false }
+      }
+    }
+
+    if (!memberProjects || memberProjects.length === 0) {
+      return {
+        data: [],
+        error: null,
+        pagination: { page, limit, total: 0, hasNext: false, hasPrev: false }
+      }
+    }
+
+    const projectIds = memberProjects.map(mp => mp.project_id)
+
+    // Get projects with count
     const { data: projects, error, count } = await supabase
       .from('projects')
-      .select(`
-        *,
-        project_members!inner(
-          role,
-          profiles(id, name, email, role)
-        )
-      `, { count: 'exact' })
-      .eq('project_members.user_id', userId)
+      .select('*', { count: 'exact' })
+      .in('id', projectIds)
       .order('updated_at', { ascending: false })
       .range(offset, offset + limit - 1)
 
+    // Add member role to each project
+    const projectsWithRoles = projects?.map(project => ({
+      ...project,
+      memberRole: memberProjects.find(mp => mp.project_id === project.id)?.role
+    })) || []
+
     return {
-      data: projects || [],
+      data: projectsWithRoles,
       error,
       pagination: {
         page,
@@ -74,19 +238,45 @@ export class SupabaseDatabaseService {
   }
 
   async getProjectById(projectId: string) {
-    const { data, error } = await supabase
-      .from('projects')
-      .select(`
-        *,
-        project_members(
+    try {
+      // Use service role client for server-side operations
+      const supabaseService = createServiceRoleClient()
+
+      // Get project details
+      const { data: project, error: projectError } = await supabaseService
+        .from('projects')
+        .select('*')
+        .eq('id', projectId)
+        .single()
+
+      if (projectError || !project) {
+        return { data: null, error: projectError }
+      }
+
+      // Get project members separately
+      const { data: members, error: membersError } = await supabaseService
+        .from('project_members')
+        .select(`
           role,
           profiles(id, name, email, role)
-        )
-      `)
-      .eq('id', projectId)
-      .single()
+        `)
+        .eq('project_id', projectId)
 
-    return { data, error }
+      if (membersError) {
+        return { data: project, error: null } // Return project without members if members query fails
+      }
+
+      return {
+        data: {
+          ...project,
+          project_members: members || []
+        },
+        error: null
+      }
+    } catch (error) {
+      console.error('Error in getProjectById:', error)
+      return { data: null, error }
+    }
   }
 
   async createProject(projectData: {
@@ -99,8 +289,9 @@ export class SupabaseDatabaseService {
     address?: string
   }, creatorId: string) {
     try {
-      // Create the project
-      const { data: project, error: projectError } = await supabase
+      // Create the project using service role client to bypass RLS
+      const supabaseService = createServiceRoleClient()
+      const { data: project, error: projectError } = await supabaseService
         .from('projects')
         .insert(projectData as any)
         .select()
@@ -110,8 +301,8 @@ export class SupabaseDatabaseService {
         return { data: null, error: projectError }
       }
 
-      // Add creator as project manager
-      const { error: memberError } = await supabase
+      // Add creator as project manager using service role client
+      const { error: memberError } = await supabaseService
         .from('project_members')
         .insert({
           project_id: (project as any).id,
@@ -121,7 +312,7 @@ export class SupabaseDatabaseService {
 
       if (memberError) {
         // Rollback project creation if member addition fails
-        await supabase.from('projects').delete().eq('id', (project as any).id)
+        await supabaseService.from('projects').delete().eq('id', (project as any).id)
         return { data: null, error: memberError }
       }
 
@@ -194,6 +385,50 @@ export class SupabaseDatabaseService {
     return { data, error }
   }
 
+  // ===== CHECKLIST QUERIES =====
+
+  async createChecklist(checklistData: {
+    project_id: string
+    name: string
+    description?: string
+    version: string
+    questions: any[]
+    created_by: string
+    is_active: boolean
+  }) {
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
+      .from('checklists')
+      .insert(checklistData as any)
+      .select()
+      .single()
+
+    return { data, error }
+  }
+
+  async getChecklistsForProject(projectId: string) {
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
+      .from('checklists')
+      .select('*')
+      .eq('project_id', projectId)
+      .eq('is_active', true)
+      .order('created_at', { ascending: false })
+
+    return { data: data || [], error }
+  }
+
+  async getChecklistById(checklistId: string) {
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
+      .from('checklists')
+      .select('*')
+      .eq('id', checklistId)
+      .single()
+
+    return { data, error }
+  }
+
   // ===== INSPECTION QUERIES =====
 
   async getInspectionsForProject(
@@ -208,7 +443,10 @@ export class SupabaseDatabaseService {
     limit: number = 20
   ) {
     const offset = (page - 1) * limit
-    let query = supabase
+
+    // Use service role client to ensure we can read inspections
+    const supabaseService = createServiceRoleClient()
+    let query = supabaseService
       .from('inspections')
       .select(`
         *,
@@ -221,6 +459,7 @@ export class SupabaseDatabaseService {
     if (filters.userRole === 'INSPECTOR' && filters.userId) {
       query = query.eq('assigned_to', filters.userId)
     }
+    // Project managers can see all inspections in their projects - no additional filtering needed
 
     // Apply other filters
     if (filters.status && filters.status.length > 0) {
@@ -236,6 +475,10 @@ export class SupabaseDatabaseService {
       .order('due_date', { ascending: true })
       .order('created_at', { ascending: false })
       .range(offset, offset + limit - 1)
+
+    if (error) {
+      console.error('Database error in getInspectionsForProject:', error)
+    }
 
     return {
       data: data || [],
@@ -281,14 +524,18 @@ export class SupabaseDatabaseService {
     priority?: 'LOW' | 'MEDIUM' | 'HIGH'
     due_date?: string
   }) {
-    const { data, error } = await supabase
+    const insertData = {
+      ...inspectionData,
+      status: 'DRAFT',
+      responses: {},
+      rejection_count: 0
+    }
+
+    // Use service role client to bypass RLS policies
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
       .from('inspections')
-      .insert({
-        ...inspectionData,
-        status: 'DRAFT',
-        responses: {},
-        rejection_count: 0
-      } as any)
+      .insert(insertData as any)
       .select()
       .single()
 
@@ -319,7 +566,9 @@ export class SupabaseDatabaseService {
       updateData.completed_at = new Date().toISOString()
     }
 
-    const { data, error } = await this.db
+    // Use service role client to bypass RLS policies
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
       .from('inspections')
       .update(updateData)
       .eq('id', inspectionId)
@@ -337,7 +586,9 @@ export class SupabaseDatabaseService {
     assigned_to?: string
     responses?: any
   }) {
-    const { data, error } = await this.db
+    // Use service role client to bypass RLS policies
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
       .from('inspections')
       .update({
         ...updates,
@@ -631,17 +882,20 @@ export class SupabaseDatabaseService {
       if (userRole === 'INSPECTOR') {
         inspectionsQuery = inspectionsQuery.eq('assigned_to', userId)
       } else if (userRole === 'PROJECT_MANAGER') {
-        // Get inspections from projects where user is a manager
-        inspectionsQuery = supabase
-          .from('inspections')
-          .select(`
-            *,
-            projects!inner(
-              project_members!inner(user_id, role)
-            )
-          `, { count: 'exact' })
-          .eq('projects.project_members.user_id', userId)
-          .eq('projects.project_members.role', 'PROJECT_MANAGER')
+        // First get project IDs where user is a manager
+        const { data: managerProjects } = await supabase
+          .from('project_members')
+          .select('project_id')
+          .eq('user_id', userId)
+          .eq('role', 'PROJECT_MANAGER')
+
+        if (managerProjects && managerProjects.length > 0) {
+          const projectIds = managerProjects.map(mp => mp.project_id)
+          inspectionsQuery = supabase
+            .from('inspections')
+            .select('*', { count: 'exact' })
+            .in('project_id', projectIds)
+        }
       }
 
       const { count: totalInspections } = await inspectionsQuery
@@ -696,6 +950,127 @@ export class SupabaseDatabaseService {
         completedThisWeek: 0,
         overdueInspections: 0,
       }
+    }
+  }
+
+  // ===== PROJECT MEMBER MANAGEMENT =====
+
+  async addProjectMember(projectId: string, userId: string, role: 'PROJECT_MANAGER' | 'INSPECTOR' = 'INSPECTOR') {
+    try {
+      const supabaseService = createServiceRoleClient()
+
+      // Check if user is already a member
+      const { data: existingMember } = await supabaseService
+        .from('project_members')
+        .select('id')
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .single()
+
+      if (existingMember) {
+        return { data: null, error: { message: 'User is already a member of this project' } }
+      }
+
+      // Add the member
+      const { data, error } = await supabaseService
+        .from('project_members')
+        .insert({
+          project_id: projectId,
+          user_id: userId,
+          role: role
+        } as any)
+        .select(`
+          role,
+          profiles(id, name, email, role)
+        `)
+        .single()
+
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }
+
+  async removeProjectMember(projectId: string, userId: string) {
+    try {
+      const supabaseService = createServiceRoleClient()
+
+      // Don't allow removing the last project manager
+      const { data: managers } = await supabaseService
+        .from('project_members')
+        .select('user_id')
+        .eq('project_id', projectId)
+        .eq('role', 'PROJECT_MANAGER')
+
+      if (managers && managers.length === 1 && managers[0].user_id === userId) {
+        return { data: null, error: { message: 'Cannot remove the last project manager' } }
+      }
+
+      const { data, error } = await supabaseService
+        .from('project_members')
+        .delete()
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .select()
+        .single()
+
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }
+
+  async updateProjectMemberRole(projectId: string, userId: string, role: 'PROJECT_MANAGER' | 'INSPECTOR') {
+    try {
+      const supabaseService = createServiceRoleClient()
+
+      const { data, error } = await supabaseService
+        .from('project_members')
+        .update({ role })
+        .eq('project_id', projectId)
+        .eq('user_id', userId)
+        .select(`
+          role,
+          profiles(id, name, email, role)
+        `)
+        .single()
+
+      return { data, error }
+    } catch (error) {
+      return { data: null, error }
+    }
+  }
+
+  async searchUsers(query: string, excludeProjectId?: string) {
+    try {
+      const supabaseService = createServiceRoleClient()
+
+      let searchQuery = supabaseService
+        .from('profiles')
+        .select('id, name, email, role')
+        .or(`name.ilike.%${query}%,email.ilike.%${query}%`)
+        .limit(10)
+
+      const { data: users, error } = await searchQuery
+
+      if (error) return { data: [], error }
+
+      // If excludeProjectId is provided, filter out users who are already members
+      if (excludeProjectId && users) {
+        const { data: existingMembers } = await supabaseService
+          .from('project_members')
+          .select('user_id')
+          .eq('project_id', excludeProjectId)
+
+        const existingUserIds = existingMembers?.map(m => m.user_id) || []
+        const filteredUsers = users.filter(user => !existingUserIds.includes(user.id))
+
+        return { data: filteredUsers, error: null }
+      }
+
+      return { data: users || [], error: null }
+    } catch (error) {
+      return { data: [], error }
     }
   }
 
@@ -765,18 +1140,27 @@ export class SupabaseDatabaseService {
     if (userRole === 'INSPECTOR') {
       query = query.eq('assigned_to', userId)
     } else if (userRole === 'PROJECT_MANAGER') {
-      query = supabase
-        .from('inspections')
-        .select(`
-          *,
-          profiles!inspections_assigned_to_fkey(id, name, email),
-          projects!inner(
-            id, name,
-            project_members!inner(user_id, role)
-          )
-        `)
-        .eq('projects.project_members.user_id', userId)
-        .eq('projects.project_members.role', 'PROJECT_MANAGER')
+      // First get project IDs where user is a manager
+      const { data: managerProjects } = await supabase
+        .from('project_members')
+        .select('project_id')
+        .eq('user_id', userId)
+        .eq('role', 'PROJECT_MANAGER')
+
+      if (managerProjects && managerProjects.length > 0) {
+        const projectIds = managerProjects.map(mp => mp.project_id)
+        query = supabase
+          .from('inspections')
+          .select(`
+            *,
+            profiles!inspections_assigned_to_fkey(id, name, email),
+            projects(id, name)
+          `)
+          .in('project_id', projectIds)
+      } else {
+        // No projects found, return empty result
+        return { data: [], error: null }
+      }
     }
 
     const { data, error } = await query.order('created_at', { ascending: false })
@@ -784,7 +1168,8 @@ export class SupabaseDatabaseService {
   }
 
   async getChecklists() {
-    const { data, error } = await supabase
+    const supabaseService = createServiceRoleClient()
+    const { data, error } = await supabaseService
       .from('checklists')
       .select('*')
       .order('name', { ascending: true })
@@ -874,6 +1259,19 @@ export class SupabaseDatabaseService {
 
   // Get escalation queue for manager
   async getEscalationQueueForManager(managerId: string) {
+    // First get project IDs where user is a manager
+    const { data: managerProjects } = await supabase
+      .from('project_members')
+      .select('project_id')
+      .eq('user_id', managerId)
+      .eq('role', 'PROJECT_MANAGER')
+
+    if (!managerProjects || managerProjects.length === 0) {
+      return { data: [], error: null }
+    }
+
+    const projectIds = managerProjects.map(mp => mp.project_id)
+
     const { data, error } = await supabase
       .from('escalation_queue')
       .select(`
@@ -884,18 +1282,10 @@ export class SupabaseDatabaseService {
           status,
           assigned_to,
           project_id,
-          projects!inner (
-            id,
-            name,
-            project_members!inner (
-              user_id,
-              role
-            )
-          )
+          projects (id, name)
         )
       `)
-      .eq('inspections.projects.project_members.user_id', managerId)
-      .eq('inspections.projects.project_members.role', 'MANAGER')
+      .in('inspections.project_id', projectIds)
       .in('status', ['QUEUED', 'NOTIFIED'])
       .order('priority_level', { ascending: false })
       .order('created_at', { ascending: true })

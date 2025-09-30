@@ -16,13 +16,17 @@ interface ProjectListProps {
   loading?: boolean
   userProjects?: string[]
   onProjectClick?: (projectId: string) => void
+  onViewDetails?: (projectId: string) => void
+  onManageProject?: (projectId: string) => void
 }
 
 export function ProjectList({ 
   projects, 
   loading = false, 
   userProjects = [],
-  onProjectClick 
+  onProjectClick,
+  onViewDetails,
+  onManageProject
 }: ProjectListProps) {
   const getStatusColor = (status: string) => {
     switch (status) {
@@ -99,10 +103,18 @@ export function ProjectList({
               </div>
               
               <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
-                <Button variant="outline" size="sm">
+                <Button 
+                  variant="outline" 
+                  size="sm"
+                  onClick={() => onViewDetails?.(project.id)}
+                >
                   View Details
                 </Button>
-                <Button variant="default" size="sm">
+                <Button 
+                  variant="default" 
+                  size="sm"
+                  onClick={() => onManageProject?.(project.id)}
+                >
                   Manage
                 </Button>
               </div>

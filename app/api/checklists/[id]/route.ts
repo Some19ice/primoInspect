@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withSupabaseAuth, logAuditEvent } from '@/lib/supabase/rbac'
-import { supabase } from '@/lib/supabase/client'
+import { supabaseDatabase } from '@/lib/supabase/database'
 
 export async function GET(
   request: NextRequest,
@@ -12,15 +12,7 @@ export async function GET(
   try {
     const { id } = await params
     
-    const { data, error: fetchError } = await supabase
-      .from('checklists')
-      .select(`
-        *,
-        projects(id, name),
-        profiles!checklists_created_by_fkey(id, name, email)
-      `)
-      .eq('id', id)
-      .single()
+    const { data, error: fetchError } = await supabaseDatabase.getChecklistById(id)
 
     if (fetchError) {
       return NextResponse.json(

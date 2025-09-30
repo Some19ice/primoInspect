@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { withSupabaseAuth, logAuditEvent } from '@/lib/supabase/rbac'
-import { supabase } from '@/lib/supabase/client'
+import { supabaseDatabase } from '@/lib/supabase/database'
 
 // GET /api/checklists - List checklists for authenticated user's projects
 export async function GET(request: NextRequest) {
@@ -12,18 +12,9 @@ export async function GET(request: NextRequest) {
     const projectId = searchParams.get('projectId')
     const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
 
-    let query = supabase
-      .from('checklists')
-      .select('*')
-      .eq('is_active', true)
-
-    if (projectId) {
-      query = query.eq('project_id', projectId)
-    }
-
-    const { data, error: fetchError } = await query
-      .order('created_at', { ascending: false })
-      .limit(limit)
+    const { data, error: fetchError } = projectId
+      ? await supabaseDatabase.getChecklistsForProject(projectId)
+      : await supabaseDatabase.getChecklists()
 
     if (fetchError) {
       return NextResponse.json(
@@ -32,10 +23,7 @@ export async function GET(request: NextRequest) {
       )
     }
 
-    return NextResponse.json({
-      checklists: data || [],
-      total: data?.length || 0
-    })
+    return NextResponse.json(data || [])
   } catch (error) {
     console.error('Error fetching checklists:', error)
     return NextResponse.json(
@@ -63,19 +51,15 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const { data, error: createError } = await supabase
-      .from('checklists')
-      .insert({
-        project_id: projectId,
-        name,
-        description,
-        questions,
-        version: '1.0',
-        is_active: true,
-        created_by: user!.id
-      } as any)
-      .select()
-      .single()
+    const { data, error: createError } = await supabaseDatabase.createChecklist({
+      project_id: projectId,
+      name,
+      description,
+      version: '1.0',
+      questions,
+      created_by: user!.id,
+      is_active: true
+    })
 
     if (createError) {
       console.error('Error creating checklist:', createError)

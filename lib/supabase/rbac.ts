@@ -23,17 +23,16 @@ export interface RBACOptions {
 }
 
 // Create server-side Supabase client with cookies
-function createSupabaseServerClient() {
-  const cookieStore = cookies()
+async function createSupabaseServerClient() {
+  const cookieStore = await cookies()
   
   return createServerClient<Database>(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
     process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        async get(name: string) {
-          const cookies = await cookieStore
-          return cookies.get(name)?.value
+        get(name: string) {
+          return cookieStore.get(name)?.value
         },
       },
     }
@@ -46,7 +45,7 @@ export async function withSupabaseAuth(
   options: RBACOptions = {}
 ): Promise<{ user: AuthenticatedUser | null; error?: NextResponse }> {
   try {
-    const supabaseServer = createSupabaseServerClient()
+    const supabaseServer = await createSupabaseServerClient()
     
     // Get the current user session
     const { data: { user }, error: userError } = await supabaseServer.auth.getUser()
@@ -161,16 +160,21 @@ export async function hasProjectAccess(
   userId: string,
   projectId: string
 ): Promise<boolean> {
-  const supabaseServer = createSupabaseServerClient()
+  const supabaseServer = await createSupabaseServerClient()
   
-  const { data: membership, error } = await supabaseServer
-    .from('project_members')
-    .select('id')
-    .eq('project_id', projectId)
-    .eq('user_id', userId)
-    .single()
+  try {
+    const { data: membership, error } = await supabaseServer
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .single()
 
-  return !error && !!membership
+    return !error && !!membership
+  } catch (error) {
+    console.error('Error checking project access:', error)
+    return false
+  }
 }
 
 // Permission checking class for specific actions
@@ -344,7 +348,7 @@ export async function logAuditEvent(
   ipAddress?: string,
   userAgent?: string
 ) {
-  const supabaseServer = createSupabaseServerClient()
+  const supabaseServer = await createSupabaseServerClient()
   
   try {
     await supabaseServer
@@ -369,7 +373,7 @@ export async function logAuditEvent(
 
 // Escalation helper for inspection workflow
 export async function checkInspectionEscalation(inspectionId: string): Promise<boolean> {
-  const supabaseServer = createSupabaseServerClient()
+  const supabaseServer = await createSupabaseServerClient()
   
   try {
     // Get rejection count for the inspection

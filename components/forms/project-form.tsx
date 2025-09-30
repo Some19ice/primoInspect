@@ -16,7 +16,7 @@ interface ProjectFormData {
 }
 
 interface ProjectFormProps {
-  onSubmit: (data: ProjectFormData) => void
+  onSubmit: (data: any) => void
   onCancel?: () => void
   initialData?: Partial<ProjectFormData>
   isLoading?: boolean
@@ -45,6 +45,22 @@ export function ProjectForm({ onSubmit, onCancel, initialData, isLoading = false
     }
   }
 
+  const onFormSubmit = (data: ProjectFormData) => {
+    // Send data as-is, let the API handle date conversion
+    const formattedData = {
+      name: data.name,
+      description: data.description,
+      startDate: data.startDate,
+      endDate: data.endDate,
+      location: data.latitude && data.longitude ? {
+        latitude: data.latitude,
+        longitude: data.longitude,
+        address: data.address
+      } : undefined
+    }
+    onSubmit(formattedData)
+  }
+
   return (
     <Card>
       <CardHeader>
@@ -54,7 +70,7 @@ export function ProjectForm({ onSubmit, onCancel, initialData, isLoading = false
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+        <form onSubmit={handleSubmit(onFormSubmit)} className="space-y-4">
           {/* Project Name */}
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1">

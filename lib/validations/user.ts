@@ -4,7 +4,7 @@ export const UserSchema = z.object({
   id: z.string().uuid(),
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-  role: z.enum(['executive', 'project-manager', 'inspector']),
+  role: z.enum(['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR']),
   avatar: z.string().url().optional(),
   isActive: z.boolean().default(true),
   projectIds: z.array(z.string().uuid()),
@@ -22,7 +22,7 @@ export const CreateUserSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
   password: z.string().min(8, 'Password must be at least 8 characters'),
-  role: z.enum(['executive', 'project-manager', 'inspector']),
+  role: z.enum(['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR']),
   avatar: z.string().url().optional(),
 })
 
@@ -39,7 +39,7 @@ export const UpdateUserSchema = z.object({
 export const UserInvitationSchema = z.object({
   email: z.string().email('Invalid email address'),
   name: z.string().min(1, 'Name is required').max(100, 'Name too long'),
-  role: z.enum(['executive', 'project-manager', 'inspector']),
+  role: z.enum(['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR']),
   projectId: z.string().uuid('Invalid project ID'),
 })
 
@@ -63,8 +63,8 @@ export const ChangePasswordSchema = z
 
 // Role-based permission validation
 export const PermissionSchema = z.object({
-  userRole: z.enum(['executive', 'project-manager', 'inspector']),
-  requiredRole: z.enum(['executive', 'project-manager', 'inspector']),
+  userRole: z.enum(['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR']),
+  requiredRole: z.enum(['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR']),
   action: z.string(),
 })
 

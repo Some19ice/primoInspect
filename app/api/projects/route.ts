@@ -1,13 +1,12 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withSupabaseAuth, logAuditEvent } from '@/lib/supabase/rbac'
+import { withRBAC, requireProjectManager, AuthenticatedRequest } from '@/lib/auth/rbac-middleware'
+import { logAuditEvent } from '@/lib/auth/auth-service'
 import { supabaseDatabase } from '@/lib/supabase/database'
 import { CreateProjectSchema } from '@/lib/validations/project'
+import { getTemplateByProjectType } from '@/lib/templates/checklist-templates'
 
 // GET /api/projects - List projects for authenticated user
-export async function GET(request: NextRequest) {
-  const { user, error } = await withSupabaseAuth(request)
-  if (error) return error
-
+export const GET = withRBAC()(async (request: AuthenticatedRequest) => {
   try {
     const { searchParams } = new URL(request.url)
     const page = parseInt(searchParams.get('page') || '1')
@@ -16,14 +15,19 @@ export async function GET(request: NextRequest) {
 
     // Get projects for user with pagination using Supabase
     const result = await supabaseDatabase.getProjectsForUser(
-      user!.id,
+      request.user.id,
       page,
       limit
     )
 
     if (result.error) {
       return NextResponse.json(
-        { error: 'Failed to fetch projects' },
+        {
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'Failed to fetch projects',
+          },
+        },
         { status: 500 }
       )
     }
@@ -41,19 +45,19 @@ export async function GET(request: NextRequest) {
   } catch (error) {
     console.error('Error fetching projects:', error)
     return NextResponse.json(
-      { error: 'Failed to fetch projects' },
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to fetch projects',
+        },
+      },
       { status: 500 }
     )
   }
-}
+})
 
 // POST /api/projects - Create new project (Project Manager only)
-export async function POST(request: NextRequest) {
-  const { user, error } = await withSupabaseAuth(request, {
-    requiredRole: 'PROJECT_MANAGER',
-  })
-  if (error) return error
-
+export const POST = requireProjectManager()(async (request: AuthenticatedRequest) => {
   try {
     const body = await request.json()
 
@@ -71,35 +75,64 @@ export async function POST(request: NextRequest) {
         longitude: validatedData.location?.longitude,
         address: validatedData.location?.address,
       },
-      user!.id
+      request.user.id
     )
 
     if (result.error) {
       console.error('Error creating project:', result.error)
       return NextResponse.json(
-        { error: 'Failed to create project' },
+        {
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'Failed to create project',
+            details: result.error,
+          },
+        },
         { status: 500 }
       )
     }
 
-    const project = result.data! as any // Type assertion for now
+    const project = result.data! as any
+
+    // Create default checklists based on project template
+    if (body.type && body.type !== 'CUSTOM') {
+      const templates = getTemplateByProjectType(body.type)
+
+      for (const template of templates) {
+        try {
+          await supabaseDatabase.createChecklist({
+            project_id: project.id,
+            name: template.name,
+            description: template.description,
+            version: template.version,
+            questions: template.questions,
+            created_by: request.user.id,
+            is_active: true
+          })
+        } catch (checklistError) {
+          console.error('Error creating default checklist:', checklistError)
+          // Continue with other checklists even if one fails
+        }
+      }
+    }
 
     // Log project creation with audit trail
     await logAuditEvent(
       'PROJECT',
       project.id,
       'CREATED',
-      user!.id,
+      request.user.id,
       {
         name: project.name,
+        type: body.type,
+        template_id: body.template_id,
         location: {
           latitude: project.latitude,
           longitude: project.longitude,
         },
-        teamMemberIds: [user!.id],
+        teamMemberIds: [request.user.id],
       },
-      request.headers.get('x-forwarded-for') || undefined,
-      request.headers.get('user-agent') || undefined
+      request
     )
 
     // Return created project with proper format
@@ -115,27 +148,41 @@ export async function POST(request: NextRequest) {
         longitude: project.longitude,
         address: project.address,
       },
-      teamMembers: [user!.id],
+      teamMembers: [request.user.id],
       createdAt: project.created_at,
       updatedAt: project.updated_at,
     }
 
     return NextResponse.json(formattedProject, { status: 201 })
   } catch (error) {
+    console.error('Error in POST /api/projects:', error)
+
     if (error instanceof Error) {
       // Validation error
       if (error.name === 'ZodError') {
+        const zodError = error as any
         return NextResponse.json(
-          { error: 'Invalid request data', details: error.message },
+          {
+            error: {
+              code: 'VALIDATION_ERROR',
+              message: 'Invalid request data',
+              details: zodError.issues || error.message,
+            },
+          },
           { status: 400 }
         )
       }
     }
 
-    console.error('Error creating project:', error)
     return NextResponse.json(
-      { error: 'Failed to create project' },
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to create project',
+          details: error instanceof Error ? error.message : 'Unknown error',
+        },
+      },
       { status: 500 }
     )
   }
-}
+})

@@ -11,7 +11,15 @@
     "validate:api": "echo 'API validation not implemented yet'",
     "validate:db": "echo 'DB validation not implemented yet'",
     "validate:mobile-performance": "echo 'Mobile performance validation not implemented yet'",
-    "seed:demo-data": "tsx prisma/seed.ts"
+    "seed:demo-data": "tsx scripts/seed-demo-data.ts",
+    "seed:sql": "supabase db reset --db-url $DATABASE_URL && psql $DATABASE_URL -f supabase/seed.sql",
+    "test:auth": "tsx scripts/test-auth.ts",
+    "fix:auth": "tsx scripts/fix-auth-issues.ts",
+    "clean:profiles": "tsx scripts/clean-duplicate-profiles.ts",
+    "fix:rls": "tsx scripts/fix-rls-policies.ts",
+    "fix:auth-simple": "tsx scripts/simple-auth-fix.ts",
+    "fix:dashboard": "tsx scripts/fix-dashboard-auth.ts",
+    "test:dashboard": "tsx scripts/test-dashboard-flow.ts"
   },
   "dependencies": {
     "@hookform/resolvers": "^3.7.0",
@@ -34,6 +42,7 @@
     "bcryptjs": "^3.0.2",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
+    "dotenv": "^17.2.2",
     "lucide-react": "^0.400.0",
     "maplibre-gl": "^4.4.1",
     "next": "^15.5.4",

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import { useRouter } from 'next/navigation'
+import Link from 'next/link'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { supabaseAuth } from '@/lib/supabase/auth'
@@ -23,30 +24,33 @@ export default function SignIn() {
 
       if (error) {
         setError(error.message)
+        console.error('Sign in error:', error)
       } else if (data.user) {
-        // Get user profile to determine role-based redirect
-        const { profile } = await supabaseAuth.getProfile()
+        console.log('User signed in successfully:', data.user)
         
-        if (profile) {
-          // Redirect based on role (FR-001: Role-aware dashboards)
-          switch (profile.role) {
-            case 'EXECUTIVE':
-              router.push('/dashboard/executive')
-              break
-            case 'PROJECT_MANAGER':
-              router.push('/dashboard/manager')
-              break
-            case 'INSPECTOR':
-              router.push('/dashboard/inspector')
-              break
-            default:
-              router.push('/dashboard/inspector')
-          }
+        // Get the redirect URL from query params
+        const urlParams = new URLSearchParams(window.location.search)
+        const redirectTo = urlParams.get('redirectTo')
+        
+        if (redirectTo) {
+          console.log('Redirecting to:', redirectTo)
+          router.push(redirectTo)
         } else {
-          router.push('/dashboard/inspector')
+          // Get user role from metadata or session
+          const userRole = data.user.user_metadata?.role || 'INSPECTOR'
+          console.log('User role from metadata:', userRole)
+          
+          // Redirect based on role
+          const redirectPath = userRole === 'EXECUTIVE' ? '/dashboard/executive' :
+                             userRole === 'PROJECT_MANAGER' ? '/dashboard/manager' :
+                             '/dashboard/inspector'
+          
+          console.log('Redirecting to role-based dashboard:', redirectPath)
+          router.push(redirectPath)
         }
       }
     } catch (error) {
+      console.error('Signin catch error:', error)
       setError('An error occurred. Please try again.')
     } finally {
       setIsLoading(false)
@@ -112,20 +116,32 @@ export default function SignIn() {
             </Button>
           </form>
 
+          <div className="mt-6 text-center">
+            <p className="text-sm text-gray-600">
+              Don't have an account?{' '}
+              <Link href="/auth/signup" className="text-blue-600 hover:text-blue-700 font-medium">
+                Sign up
+              </Link>
+            </p>
+          </div>
+
           <div className="mt-6 rounded-md bg-blue-50 p-4">
             <h3 className="mb-2 text-sm font-medium text-blue-800">
-              Demo Accounts (Create via Supabase)
+              Demo Login Instructions
             </h3>
-            <div className="space-y-1 text-xs text-blue-600">
+            <div className="space-y-2 text-xs text-blue-600">
               <div>
-                <strong>Executive:</strong> Create account with role: EXECUTIVE
+                <strong>To create demo accounts:</strong>
               </div>
-              <div>
-                <strong>Project Manager:</strong> Create account with role: PROJECT_MANAGER
+              <div>1. Go to <strong>Sign Up</strong> page</div>
+              <div>2. Create account with one of these emails:</div>
+              <div className="ml-2 space-y-1">
+                <div>• <strong>executive@demo.com</strong> (Executive role)</div>
+                <div>• <strong>manager@demo.com</strong> (Project Manager role)</div>
+                <div>• <strong>inspector@demo.com</strong> (Inspector role)</div>
               </div>
-              <div>
-                <strong>Inspector:</strong> Create account with role: INSPECTOR
-              </div>
+              <div>3. Use any password (min 8 characters)</div>
+              <div>4. Return here to sign in</div>
             </div>
           </div>
         </CardContent>

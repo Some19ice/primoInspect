@@ -30,19 +30,35 @@ export const CreateProjectSchema = z
       .min(1, 'Project name is required')
       .max(100, 'Project name too long'),
     description: z.string().optional(),
-    startDate: z.date(),
-    endDate: z.date().optional(),
+    startDate: z.string().or(z.date()).transform((val) => {
+      if (typeof val === 'string') {
+        // Parse as date and set to start of day to avoid timezone issues
+        const date = new Date(val + 'T00:00:00.000Z')
+        return date
+      }
+      return val
+    }),
+    endDate: z.string().or(z.date()).transform((val) => {
+      if (typeof val === 'string') {
+        // Parse as date and set to end of day to avoid timezone issues
+        const date = new Date(val + 'T23:59:59.999Z')
+        return date
+      }
+      return val
+    }).optional(),
     location: z.object({
       latitude: z
         .number()
         .min(-90, 'Invalid latitude')
-        .max(90, 'Invalid latitude'),
+        .max(90, 'Invalid latitude')
+        .optional(),
       longitude: z
         .number()
         .min(-180, 'Invalid longitude')
-        .max(180, 'Invalid longitude'),
+        .max(180, 'Invalid longitude')
+        .optional(),
       address: z.string().optional(),
-    }),
+    }).optional(),
   })
   .refine(data => !data.endDate || data.endDate > data.startDate, {
     message: 'End date must be after start date',

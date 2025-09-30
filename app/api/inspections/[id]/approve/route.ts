@@ -1,23 +1,19 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withSupabaseAuth, logAuditEvent } from '@/lib/supabase/rbac'
+import { requireProjectManager, AuthenticatedRequest } from '@/lib/auth/rbac-middleware'
+import { logAuditEvent } from '@/lib/auth/auth-service'
 import { supabaseDatabase } from '@/lib/supabase/database'
 
-export async function POST(
-  request: NextRequest,
+export const POST = requireProjectManager()(async (
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const { user, error } = await withSupabaseAuth(request, {
-    requiredRole: 'PROJECT_MANAGER',
-  })
-  if (error) return error
-
+) => {
   try {
     const { id } = await params
     const body = await request.json()
     
     const approvalData = {
       inspection_id: id,
-      approver_id: user!.id,
+      approver_id: request.user.id,
       decision: 'APPROVED' as const,
       notes: body.notes || '',
       is_escalated: body.isEscalated || false,
@@ -28,7 +24,12 @@ export async function POST(
     
     if (result.error) {
       return NextResponse.json(
-        { error: 'Failed to approve inspection' },
+        {
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'Failed to approve inspection',
+          },
+        },
         { status: 500 }
       )
     }
@@ -38,33 +39,34 @@ export async function POST(
       completed_at: new Date().toISOString()
     })
 
-    await logAuditEvent('INSPECTION', id, 'APPROVED', user!.id, body)
+    await logAuditEvent('INSPECTION', id, 'APPROVED', request.user.id, body, request)
     
     return NextResponse.json(result.data)
   } catch (error) {
+    console.error('Error approving inspection:', error)
     return NextResponse.json(
-      { error: 'Failed to approve inspection' },
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to approve inspection',
+        },
+      },
       { status: 500 }
     )
   }
-}
+})
 
-export async function PUT(
-  request: NextRequest,
+export const PUT = requireProjectManager()(async (
+  request: AuthenticatedRequest,
   { params }: { params: Promise<{ id: string }> }
-) {
-  const { user, error } = await withSupabaseAuth(request, {
-    requiredRole: 'PROJECT_MANAGER',
-  })
-  if (error) return error
-
+) => {
   try {
     const { id } = await params
     const body = await request.json()
     
     const approvalData = {
       inspection_id: id,
-      approver_id: user!.id,
+      approver_id: request.user.id,
       decision: 'REJECTED' as const,
       notes: body.notes || '',
       is_escalated: body.isEscalated || false,
@@ -75,7 +77,12 @@ export async function PUT(
     
     if (result.error) {
       return NextResponse.json(
-        { error: 'Failed to reject inspection' },
+        {
+          error: {
+            code: 'DATABASE_ERROR',
+            message: 'Failed to reject inspection',
+          },
+        },
         { status: 500 }
       )
     }
@@ -85,13 +92,19 @@ export async function PUT(
       rejection_count: 1 // Simplified - could be enhanced to track actual count
     })
 
-    await logAuditEvent('INSPECTION', id, 'REJECTED', user!.id, body)
+    await logAuditEvent('INSPECTION', id, 'REJECTED', request.user.id, body, request)
     
     return NextResponse.json(result.data)
   } catch (error) {
+    console.error('Error rejecting inspection:', error)
     return NextResponse.json(
-      { error: 'Failed to reject inspection' },
+      {
+        error: {
+          code: 'INTERNAL_ERROR',
+          message: 'Failed to reject inspection',
+        },
+      },
       { status: 500 }
     )
   }
-}
+})

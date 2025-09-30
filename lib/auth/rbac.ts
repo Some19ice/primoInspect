@@ -103,9 +103,22 @@ export async function hasProjectAccess(
   userId: string,
   projectId: string
 ): Promise<boolean> {
-  // For demo purposes - return true
-  // In production, use Supabase database to check project membership
-  return true
+  try {
+    // Import here to avoid circular dependencies
+    const { supabase } = await import('@/lib/supabase/client')
+    
+    const { data: membership, error } = await supabase
+      .from('project_members')
+      .select('id')
+      .eq('project_id', projectId)
+      .eq('user_id', userId)
+      .single()
+
+    return !error && !!membership
+  } catch (error) {
+    console.error('Error checking project access:', error)
+    return false
+  }
 }
 
 // Permission checking functions for specific actions
