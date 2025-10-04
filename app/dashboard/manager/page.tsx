@@ -25,7 +25,8 @@ import {
   CheckCircle,
   Clock,
   TrendingUp,
-  Activity
+  Activity,
+  ListChecks
 } from 'lucide-react'
 
 export default function ManagerDashboard() {
@@ -52,7 +53,7 @@ export default function ManagerDashboard() {
     loading: inspectionsLoading,
     stats: inspectionStats
   } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR' | undefined,
     userId: profile?.id,
     autoRefresh: true
   })
@@ -77,7 +78,7 @@ export default function ManagerDashboard() {
     const myProjects = projects.length
     const pendingApprovals = inspections.filter(i => i.status === 'IN_REVIEW').length
     const overdueInspections = inspections.filter(i => {
-      if (!i.due_date) return false
+      if (!i.due_date || !i.status) return false
       return new Date(i.due_date) < new Date() && !['APPROVED', 'REJECTED'].includes(i.status)
     }).length
     
@@ -99,13 +100,14 @@ export default function ManagerDashboard() {
     weekAgo.setDate(weekAgo.getDate() - 7)
     const thisWeekCompleted = inspections.filter(i => 
       i.status === 'APPROVED' && 
-      new Date(i.updated_at) > weekAgo
+      i.updated_at && new Date(i.updated_at) > weekAgo
     ).length
 
     // Average completion time (days)
     const completedInspections = inspections.filter(i => i.status === 'APPROVED')
     const avgCompletionTime = completedInspections.length > 0 
       ? completedInspections.reduce((sum, i) => {
+          if (!i.created_at || !i.updated_at) return sum
           const created = new Date(i.created_at)
           const completed = new Date(i.updated_at)
           return sum + (completed.getTime() - created.getTime()) / (1000 * 60 * 60 * 24)
@@ -128,6 +130,10 @@ export default function ManagerDashboard() {
 
   const handleCreateProject = () => {
     setShowCreateProject(true)
+  }
+
+  const handleCreateChecklist = () => {
+    router.push('/checklists/create')
   }
 
   const handleProjectCreated = (project: any) => {
@@ -201,10 +207,14 @@ export default function ManagerDashboard() {
               Welcome back, {profile?.name || 'Manager'}
             </p>
           </div>
-          <div className="flex gap-2">
+          <div className="flex gap-2 flex-wrap">
             <Button onClick={handleCreateProject} variant="outline" className="flex-1 sm:flex-none">
               <Plus className="h-4 w-4 mr-2" />
               New Project
+            </Button>
+            <Button onClick={handleCreateChecklist} variant="outline" className="flex-1 sm:flex-none">
+              <ListChecks className="h-4 w-4 mr-2" />
+              New Checklist
             </Button>
             <Button onClick={handleCreateInspection} className="flex-1 sm:flex-none">
               <Plus className="h-4 w-4 mr-2" />
@@ -391,7 +401,7 @@ export default function ManagerDashboard() {
                       </p>
                     </div>
                     <span className="text-xs text-gray-400">
-                      {new Date(notification.created_at).toLocaleDateString()}
+                      {notification.created_at ? new Date(notification.created_at).toLocaleDateString() : 'N/A'}
                     </span>
                   </div>
                 ))}

@@ -2,10 +2,22 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import { RealtimeChannel } from '@supabase/supabase-js'
-import { supabaseDatabase } from '@/lib/supabase/database'
 import { Database } from '@/lib/supabase/types'
 
-type EscalationQueue = Database['public']['Tables']['escalation_queue']['Row']
+// Define EscalationQueue type since escalations table is not in generated types yet
+type EscalationQueue = {
+  id: string
+  inspection_id: string
+  original_manager_id: string
+  status: string
+  priority_level: string
+  escalation_threshold_hours: number
+  notification_count: number
+  created_at: string | null
+  expires_at: string | null
+  resolved_at: string | null
+  resolved_by: string | null
+}
 
 interface UseEscalationNotificationsOptions {
   inspectionId?: string
@@ -39,13 +51,16 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
       setLoading(true)
       setError(null)
       
-      const result = await supabaseDatabase.getActiveEscalation(options.inspectionId)
+      // Call the API route
+      const response = await fetch(`/api/escalations?inspectionId=${options.inspectionId}`)
       
-      if (result.error && result.error.code !== 'PGRST116') { // PGRST116 = no rows returned
-        setError(result.error.message)
-      } else {
-        setEscalationStatus(result.data)
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch escalation' }))
+        throw new Error(errorData.error || 'Failed to fetch escalation')
       }
+
+      const result = await response.json()
+      setEscalationStatus(result.escalation)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch escalation status')
     } finally {
@@ -64,13 +79,16 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
       setLoading(true)
       setError(null)
       
-      const result = await supabaseDatabase.getEscalationQueueForManager(options.managerId)
+      // Call the API route
+      const response = await fetch(`/api/escalations?managerId=${options.managerId}`)
       
-      if (result.error) {
-        setError(result.error.message)
-      } else {
-        setEscalationQueue(result.data || [])
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch escalation queue' }))
+        throw new Error(errorData.error || 'Failed to fetch escalation queue')
       }
+
+      const result = await response.json()
+      setEscalationQueue(result.escalations || [])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch escalation queue')
     } finally {
@@ -86,15 +104,16 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
     }
 
     try {
-      // Get escalation queue for manager
-      const result = await supabaseDatabase.getEscalationQueueForManager(options.managerId)
+      // Call the API route
+      const response = await fetch(`/api/escalations?managerId=${options.managerId}`)
       
-      if (result.error) {
-        console.error('Error fetching escalation metrics:', result.error)
+      if (!response.ok) {
+        console.error('Error fetching escalation metrics')
         return
       }
 
-      const escalations = result.data || []
+      const result = await response.json()
+      const escalations = result.escalations || []
       
       setMetrics({
         totalEscalations: escalations.length,
@@ -115,18 +134,33 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
     priority_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
   }) => {
     try {
-      const result = await supabaseDatabase.createEscalation(escalationData)
+      // Call the API route
+      const response = await fetch('/api/escalations', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          inspectionId: escalationData.inspection_id,
+          originalManagerId: escalationData.original_manager_id,
+          escalationReason: escalationData.escalation_reason,
+          priorityLevel: escalationData.priority_level,
+        }),
+      })
       
-      if (result.error) {
-        const errorMessage = typeof result.error === 'string' ? result.error : 'Failed to create escalation'
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create escalation' }))
+        const errorMessage = errorData.error || 'Failed to create escalation'
         setError(errorMessage)
         return { data: null, error: errorMessage }
       }
 
+      const result = await response.json()
+
       // Refresh metrics after creating escalation
       await fetchEscalationMetrics()
       
-      return { data: result.data, error: null }
+      return { data: result.escalation, error: null }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : 'Failed to create escalation'
       setError(errorMessage)
@@ -137,10 +171,20 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
   // Resolve escalation
   const resolveEscalation = useCallback(async (escalationId: string) => {
     try {
-      const result = await supabaseDatabase.updateEscalationStatus(escalationId, 'RESOLVED')
+      // Call the API route
+      const response = await fetch(`/api/escalations/${escalationId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status: 'RESOLVED',
+        }),
+      })
       
-      if (result.error) {
-        const errorMessage = typeof result.error === 'string' ? result.error : 'Failed to resolve escalation'
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to resolve escalation' }))
+        const errorMessage = errorData.error || 'Failed to resolve escalation'
         setError(errorMessage)
         return { error: errorMessage }
       }
@@ -154,46 +198,15 @@ export function useEscalationNotifications(options: UseEscalationNotificationsOp
       setError(errorMessage)
       return { error: errorMessage }
     }
-  }, [])
+  }, [fetchEscalationMetrics])
 
   // Set up real-time subscriptions
+  // NOTE: Real-time updates are temporarily disabled to avoid using supabaseDatabase on client side.
+  // These can be re-enabled once we implement proper client-side Supabase subscriptions.
   useEffect(() => {
-    const channels: RealtimeChannel[] = []
-
-    // Subscribe to specific inspection escalation
-    if (options.inspectionId) {
-      const inspectionChannel = supabaseDatabase.subscribeToInspectionEscalation(
-        options.inspectionId,
-        (payload) => {
-          if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-            setEscalationStatus(payload.new as EscalationQueue)
-          } else if (payload.eventType === 'DELETE') {
-            setEscalationStatus(null)
-          }
-        }
-      )
-      channels.push(inspectionChannel)
-    }
-
-    // Subscribe to escalation queue changes for manager
-    if (options.managerId) {
-      const queueChannel = supabaseDatabase.subscribeToEscalationQueue((payload) => {
-        // Refresh queue and metrics on any escalation changes
-        fetchEscalationQueue()
-        fetchEscalationMetrics()
-      })
-      channels.push(queueChannel)
-    }
-
-    return () => {
-      // Cleanup subscriptions
-      channels.forEach(channel => {
-        if (channel && typeof channel.unsubscribe === 'function') {
-          channel.unsubscribe()
-        }
-      })
-    }
-  }, [options.inspectionId, options.managerId, fetchEscalationQueue, fetchEscalationMetrics])
+    // TODO: Implement real-time subscriptions using client-side Supabase
+    // For now, we rely on manual refresh and auto-refresh interval
+  }, [options.inspectionId, options.managerId])
 
   // Initial data fetch
   useEffect(() => {

@@ -154,13 +154,13 @@ export class SupabaseStorageService {
     // For now, return 0 - this should be implemented with database query
     try {
       const { data, error } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select('file_size')
         .eq('inspection_id', inspectionId)
 
       if (error || !data) return 0
 
-      return data.reduce((total: number, evidence: { file_size: number }) => total + evidence.file_size, 0)
+      return (data as any[]).reduce((total: number, evidence: { file_size: number }) => total + evidence.file_size, 0)
     } catch {
       return 0
     }

@@ -22,15 +22,13 @@ export async function GET(
         const filters = {
             status,
             assignedTo,
-            userRole: userRole,
-            userId: user!.id
+            page,
+            limit
         }
 
         const result = await supabaseDatabase.getInspectionsForProject(
             id,
-            filters,
-            page,
-            limit
+            filters
         )
 
         if (result.error) {

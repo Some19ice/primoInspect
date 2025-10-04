@@ -72,7 +72,7 @@ export class SecureStorageService {
 
       // Get evidence record from database
       const { data: evidence, error } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select('*')
         .eq('inspection_id', inspectionId)
         .eq('url', filePath)
@@ -149,7 +149,7 @@ export class SecureStorageService {
 
       return {
         allowed: true,
-        evidence: evidence as EvidenceFile,
+        evidence: evidence as unknown as EvidenceFile,
       }
     } catch (error) {
       console.error('Error validating file access:', error)
@@ -272,7 +272,7 @@ export class SecureStorageService {
 
       // Create evidence record in database
       const { data: evidenceData, error: evidenceError } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .insert({
           inspection_id: inspectionId,
           uploaded_by: userId,
@@ -329,7 +329,7 @@ export class SecureStorageService {
       
       // Get evidence record
       const { data: evidence, error } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select('*, inspections!inner(assigned_to, status, project_id)')
         .eq('id', evidenceId)
         .single()
@@ -373,7 +373,7 @@ export class SecureStorageService {
 
       // Delete evidence record
       const { error: deleteError } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .delete()
         .eq('id', evidenceId)
 

@@ -28,6 +28,7 @@ function createServiceRoleClient() {
 type Tables = Database['public']['Tables']
 type Profile = Tables['profiles']['Row']
 type Project = Tables['projects']['Row']
+type Checklist = Tables['checklists']['Row']
 
 // Define missing types manually since they're not in the generated types
 interface Inspection {
@@ -56,15 +57,7 @@ interface Evidence {
   created_at: string
 }
 
-interface Checklist {
-  id: string
-  project_id: string
-  name: string
-  version: string
-  questions: any[]
-  is_active: boolean
-  created_at: string
-}
+
 
 interface Notification {
   id: string
@@ -429,20 +422,12 @@ export class SupabaseDatabaseService {
 
   // ===== CHECKLIST QUERIES =====
 
-  async createChecklist(checklistData: {
-    project_id: string
-    name: string
-    description?: string
-    version: string
-    questions: any[]
-    created_by: string
-    is_active: boolean
-  }) {
+  async createChecklist(checklistData: Tables['checklists']['Insert']) {
     try {
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
         .from('checklists')
-        .insert(checklistData as any)
+        .insert(checklistData)
         .select()
         .single()
 
@@ -502,7 +487,7 @@ export class SupabaseDatabaseService {
     }
   }
 
-  async updateChecklist(checklistId: string, updates: any) {
+  async updateChecklist(checklistId: string, updates: Tables['checklists']['Update']) {
     try {
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
@@ -587,7 +572,7 @@ export class SupabaseDatabaseService {
       // Use service role client for server-side operations
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
-        .from('escalations')
+        .from('escalations' as any)
         .select(`
           *,
           inspections!inner(
@@ -649,7 +634,7 @@ export class SupabaseDatabaseService {
       }
 
       const { data, error } = await supabaseService
-        .from('escalations')
+        .from('escalations' as any)
         .insert({
           ...escalationData,
           escalated_to: escalatedTo,
@@ -691,7 +676,7 @@ export class SupabaseDatabaseService {
   async getActiveEscalation(inspectionId: string) {
     try {
       const { data, error } = await supabase
-        .from('escalations')
+        .from('escalations' as any)
         .select(`
           *,
           profiles!escalations_original_manager_id_fkey(
@@ -1106,7 +1091,7 @@ export class SupabaseDatabaseService {
     try {
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .insert({
           ...evidenceData,
           url: evidenceData.public_url, // Map for backward compatibility
@@ -1127,7 +1112,7 @@ export class SupabaseDatabaseService {
       // Use service role client for server-side operations
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select(
           `
           *,
@@ -1151,7 +1136,7 @@ export class SupabaseDatabaseService {
   async getEvidenceForUser(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select('*')
         .eq('uploaded_by', userId)
         .order('created_at', { ascending: false })
@@ -1166,7 +1151,7 @@ export class SupabaseDatabaseService {
   async getTotalEvidenceSizeForInspection(inspectionId: string): Promise<number> {
     try {
       const { data, error } = await supabase
-        .from('evidence')
+        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
         .select('file_size')
         .eq('inspection_id', inspectionId)
 

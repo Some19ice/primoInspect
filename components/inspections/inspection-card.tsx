@@ -1,6 +1,12 @@
 'use client'
 
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
 import { Clock, User, AlertTriangle } from 'lucide-react'
@@ -18,40 +24,53 @@ interface InspectionCardProps {
   showActions?: boolean
 }
 
-export function InspectionCard({ 
-  inspection, 
-  onAction, 
+export function InspectionCard({
+  inspection,
+  onAction,
   compact = false,
-  showActions = true 
+  showActions = true,
 }: InspectionCardProps) {
   const getStatusColor = (status: string) => {
-    switch (status?.toLowerCase()) {
-      case 'completed': case 'approved': return 'bg-green-100 text-green-800'
-      case 'in_review': case 'in-review': return 'bg-blue-100 text-blue-800'
-      case 'pending': return 'bg-yellow-100 text-yellow-800'
-      case 'rejected': return 'bg-red-100 text-red-800'
-      case 'draft': return 'bg-gray-100 text-gray-800'
-      default: return 'bg-gray-100 text-gray-800'
+    switch (status?.toUpperCase()) {
+      case 'APPROVED':
+        return 'bg-green-100 text-green-800'
+      case 'IN_REVIEW':
+        return 'bg-blue-100 text-blue-800'
+      case 'PENDING':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'REJECTED':
+        return 'bg-red-100 text-red-800'
+      case 'DRAFT':
+        return 'bg-gray-100 text-gray-800'
+      // Legacy status handling for backward compatibility
+      case 'COMPLETED':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
   const getPriorityColor = (priority: string) => {
-    switch (priority?.toLowerCase()) {
-      case 'high': return 'text-red-600'
-      case 'medium': return 'text-yellow-600'
-      case 'low': return 'text-green-600'
-      default: return 'text-gray-600'
+    switch (priority?.toUpperCase()) {
+      case 'HIGH':
+        return 'text-red-600'
+      case 'MEDIUM':
+        return 'text-yellow-600'
+      case 'LOW':
+        return 'text-green-600'
+      default:
+        return 'text-gray-600'
     }
   }
 
   const formatDueDate = (dueDate: string) => {
     if (!dueDate) return null
-    
+
     const date = new Date(dueDate)
     const now = new Date()
     const diffTime = date.getTime() - now.getTime()
     const diffDays = Math.ceil(diffTime / (1000 * 60 * 60 * 24))
-    
+
     if (diffDays < 0) {
       return `Overdue by ${Math.abs(diffDays)} day${Math.abs(diffDays) > 1 ? 's' : ''}`
     } else if (diffDays === 0) {
@@ -71,44 +90,60 @@ export function InspectionCard({
   const getActionButton = () => {
     if (!showActions) return null
 
-    const status = inspection.status?.toLowerCase()
-    
+    const status = inspection.status?.toUpperCase()
+
     switch (status) {
-      case 'pending':
+      case 'PENDING':
         return (
-          <Button 
-            size="sm" 
-            onClick={() => onAction?.('start', inspection.id)}
-          >
+          <Button size="sm" onClick={() => onAction?.('start', inspection.id)}>
             Start
           </Button>
         )
-      case 'draft':
+      case 'DRAFT':
         return (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => onAction?.('edit', inspection.id)}
           >
             Continue
           </Button>
         )
-      case 'in_review':
-      case 'in-review':
+      case 'IN_REVIEW':
         return (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => onAction?.('review', inspection.id)}
           >
             Review
           </Button>
         )
-      case 'approved':
-      case 'completed':
+      case 'APPROVED':
         return (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onAction?.('view', inspection.id)}
+          >
+            View
+          </Button>
+        )
+      case 'REJECTED':
+        return (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => onAction?.('revise', inspection.id)}
+          >
+            Revise
+          </Button>
+        )
+      // Legacy status handling
+      case 'COMPLETED':
+        return (
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => onAction?.('view', inspection.id)}
           >
@@ -117,8 +152,8 @@ export function InspectionCard({
         )
       default:
         return (
-          <Button 
-            size="sm" 
+          <Button
+            size="sm"
             variant="outline"
             onClick={() => onAction?.('view', inspection.id)}
           >
@@ -149,30 +184,34 @@ export function InspectionCard({
           </div>
           <div className="flex flex-col items-end space-y-1">
             <Badge className={getStatusColor(inspection.status)}>
-              {inspection.status}
+              {inspection.status?.replace('_', ' ')}
             </Badge>
             {inspection.priority && (
-              <span className={`text-xs font-medium ${getPriorityColor(inspection.priority)}`}>
+              <span
+                className={`text-xs font-medium ${getPriorityColor(inspection.priority)}`}
+              >
                 {inspection.priority}
               </span>
             )}
           </div>
         </div>
       </CardHeader>
-      
+
       <CardContent>
         <div className="flex items-center justify-between">
-          <div className="text-xs text-gray-500 space-y-1">
+          <div className="space-y-1 text-xs text-gray-500">
             {assigneeName && (
               <div className="flex items-center">
-                <User className="h-3 w-3 mr-1" />
+                <User className="mr-1 h-3 w-3" />
                 {assigneeName}
               </div>
             )}
             {dueDateText && (
-              <div className={`flex items-center ${overdue ? 'text-red-600' : ''}`}>
-                {overdue && <AlertTriangle className="h-3 w-3 mr-1" />}
-                {!overdue && <Clock className="h-3 w-3 mr-1" />}
+              <div
+                className={`flex items-center ${overdue ? 'text-red-600' : ''}`}
+              >
+                {overdue && <AlertTriangle className="mr-1 h-3 w-3" />}
+                {!overdue && <Clock className="mr-1 h-3 w-3" />}
                 {dueDateText}
               </div>
             )}

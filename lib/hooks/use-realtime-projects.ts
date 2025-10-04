@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabaseDatabase } from '@/lib/supabase/database'
 import { realtimeService } from '@/lib/supabase/realtime'
 import { Database } from '@/lib/supabase/types'
 
@@ -41,13 +40,22 @@ export function useRealtimeProjects(options: UseRealtimeProjectsOptions = {}) {
 
     try {
       setError(null)
-      const result = await supabaseDatabase.getProjectsForUser(options.userId)
 
-      if (result.error) {
-        setError(result.error.message)
-      } else {
-        setProjects(result.data as ProjectWithMembers[])
+      // Call the API route instead of using service role client directly
+      const response = await fetch('/api/projects', {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to fetch projects' } }))
+        throw new Error(errorData.error?.message || 'Failed to fetch projects')
       }
+
+      const result = await response.json()
+      setProjects(result.projects as ProjectWithMembers[])
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch projects')
     } finally {
@@ -176,14 +184,34 @@ export function useRealtimeProjects(options: UseRealtimeProjectsOptions = {}) {
     }
 
     try {
-      const result = await supabaseDatabase.createProject(projectData, options.userId)
+      // Call the API route instead of using service role client directly
+      const response = await fetch('/api/projects', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          name: projectData.name,
+          description: projectData.description,
+          startDate: projectData.start_date,
+          endDate: projectData.end_date,
+          location: {
+            latitude: projectData.latitude,
+            longitude: projectData.longitude,
+            address: projectData.address,
+          },
+        }),
+      })
 
-      if (result.error) {
-        throw new Error(typeof result.error === 'string' ? result.error : 'Failed to create project')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to create project' } }))
+        throw new Error(errorData.error?.message || 'Failed to create project')
       }
 
+      const result = await response.json()
+
       // The real-time subscription will handle adding the new project to the list
-      return result.data
+      return result
     } catch (error) {
       throw error
     }
@@ -202,15 +230,24 @@ export function useRealtimeProjects(options: UseRealtimeProjectsOptions = {}) {
           : project
       ))
 
-      const result = await supabaseDatabase.updateProject(projectId, updates)
+      // Call the API route instead of using service role client directly
+      const response = await fetch(`/api/projects/${projectId}`, {
+        method: 'PATCH',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify(updates),
+      })
       
-      if (result.error) {
+      if (!response.ok) {
         // Revert optimistic update on error
         await fetchProjects()
-        throw new Error('Failed to update project')
+        const errorData = await response.json().catch(() => ({ error: { message: 'Failed to update project' } }))
+        throw new Error(errorData.error?.message || 'Failed to update project')
       }
 
-      return result.data
+      const result = await response.json()
+      return result
     } catch (error) {
       // Revert optimistic update on error
       await fetchProjects()
@@ -287,7 +324,7 @@ function showProjectStatusNotification(project: Project) {
     CANCELLED: 'Project cancelled ❌',
   }
 
-  const message = statusMessages[project.status] || `Project status updated to ${project.status}`
+  const message = project.status ? (statusMessages[project.status as keyof typeof statusMessages] || `Project status updated to ${project.status}`) : 'Project status updated'
   
   console.log(`🔔 ${project.name}: ${message}`)
   

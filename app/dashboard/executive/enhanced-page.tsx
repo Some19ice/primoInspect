@@ -28,7 +28,7 @@ export default function EnhancedExecutiveDashboard() {
   })
 
   const { inspections, loading: inspectionsLoading } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR',
     userId: profile?.id,
     autoRefresh: true
   })
@@ -79,7 +79,7 @@ export default function EnhancedExecutiveDashboard() {
     }
 
     const totalProjects = projects.length
-    const activeInspections = inspections.filter(i => ['PENDING', 'IN_REVIEW'].includes(i.status)).length
+    const activeInspections = inspections.filter(i => i.status && ['PENDING', 'IN_REVIEW'].includes(i.status)).length
     const complianceRate = analyticsData.compliance.complianceRate
     
     // Calculate cost efficiency (budget vs actual)

@@ -1,8 +1,9 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withSupabaseAuth, logAuditEvent } from '@/lib/supabase/rbac'
+import { withSupabaseAuth } from '@/lib/supabase/rbac'
 import { supabaseDatabase } from '@/lib/supabase/database'
+import { CHECKLIST_TEMPLATES, getTemplateByProjectType } from '@/lib/templates/checklist-templates'
 
-// GET /api/checklists - List checklists for authenticated user's projects
+// GET /api/checklists - Get checklists for a project or all templates
 export async function GET(request: NextRequest) {
   const { user, error } = await withSupabaseAuth(request)
   if (error) return error
@@ -10,20 +11,48 @@ export async function GET(request: NextRequest) {
   try {
     const { searchParams } = new URL(request.url)
     const projectId = searchParams.get('projectId')
-    const limit = Math.min(parseInt(searchParams.get('limit') || '20'), 50)
+    const projectType = searchParams.get('projectType')
 
-    const { data, error: fetchError } = projectId
-      ? await supabaseDatabase.getChecklistsForProject(projectId)
-      : await supabaseDatabase.getChecklists()
+    if (projectId) {
+      // Get checklists for specific project
+      const result = await supabaseDatabase.getChecklistsForProject(projectId)
 
-    if (fetchError) {
-      return NextResponse.json(
-        { error: 'Failed to fetch checklists' },
-        { status: 500 }
-      )
+      if (result.error) {
+        return NextResponse.json(
+          { error: 'Failed to fetch project checklists' },
+          { status: 500 }
+        )
+      }
+
+      // If no custom checklists, return templates based on project type
+      if (result.data.length === 0 && projectType) {
+        const templates = getTemplateByProjectType(projectType)
+        return NextResponse.json(templates.map(template => ({
+          id: template.id,
+          name: template.name,
+          description: template.description,
+          questions: template.questions,
+          version: template.version,
+          estimatedDuration: template.estimatedDuration,
+          categories: template.categories,
+          isTemplate: true
+        })))
+      }
+
+      return NextResponse.json(result.data)
+    } else {
+      // Return all available templates
+      return NextResponse.json(CHECKLIST_TEMPLATES.map(template => ({
+        id: template.id,
+        name: template.name,
+        description: template.description,
+        questions: template.questions,
+        version: template.version,
+        estimatedDuration: template.estimatedDuration,
+        categories: template.categories,
+        isTemplate: true
+      })))
     }
-
-    return NextResponse.json(data || [])
   } catch (error) {
     console.error('Error fetching checklists:', error)
     return NextResponse.json(
@@ -33,52 +62,42 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST /api/checklists - Create new checklist (Project Manager only)
+// POST /api/checklists - Create custom checklist for project
 export async function POST(request: NextRequest) {
-  const { user, error } = await withSupabaseAuth(request, {
-    requiredRole: 'PROJECT_MANAGER',
-  })
+  const { user, error } = await withSupabaseAuth(request)
   if (error) return error
 
   try {
     const body = await request.json()
-    const { projectId, name, description, questions } = body
 
-    if (!projectId || !name || !questions || !Array.isArray(questions)) {
+    // Validate required fields
+    if (!body.name || !body.questions) {
       return NextResponse.json(
-        { error: 'projectId, name, and questions array are required' },
+        { error: 'Missing required fields: name, questions' },
         { status: 400 }
       )
     }
 
-    const { data, error: createError } = await supabaseDatabase.createChecklist({
-      project_id: projectId,
-      name,
-      description,
-      version: '1.0',
-      questions,
+    // Create checklist using database service
+    const result = await supabaseDatabase.createChecklist({
+      project_id: body.projectId || null,
+      name: body.name,
+      description: body.description,
+      version: body.version || '1.0',
+      questions: body.questions,
       created_by: user!.id,
-      is_active: true
+      is_active: true,
     })
 
-    if (createError) {
-      console.error('Error creating checklist:', createError)
+    if (result.error) {
+      console.error('Database error creating checklist:', result.error)
       return NextResponse.json(
         { error: 'Failed to create checklist' },
         { status: 500 }
       )
     }
 
-    // Log audit event
-    await logAuditEvent(
-      'CHECKLIST',
-      (data as any).id,
-      'CREATED',
-      user!.id,
-      { name, questionsCount: questions.length }
-    )
-
-    return NextResponse.json(data, { status: 201 })
+    return NextResponse.json(result.data, { status: 201 })
   } catch (error) {
     console.error('Error creating checklist:', error)
     return NextResponse.json(

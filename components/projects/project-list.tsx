@@ -28,7 +28,7 @@ export function ProjectList({
   onViewDetails,
   onManageProject
 }: ProjectListProps) {
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'ACTIVE': return 'bg-green-100 text-green-800'
       case 'ON_HOLD': return 'bg-yellow-100 text-yellow-800'

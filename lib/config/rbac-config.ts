@@ -6,7 +6,7 @@
 import { Database } from '@/lib/supabase/types'
 
 export type Role = Database['public']['Tables']['profiles']['Row']['role']
-export type InspectionStatus = Database['public']['Tables']['inspections']['Row']['status']
+export type InspectionStatus = NonNullable<Database['public']['Tables']['inspections']['Row']['status']>
 export type NotificationType = Database['public']['Tables']['notifications']['Row']['type']
 
 // ===== ROLE DEFINITIONS =====
@@ -239,8 +239,8 @@ export function canTransitionInspectionStatus(
   ) || false
 }
 
-export function getRolePermissions(role: Role): typeof ROLE_PERMISSIONS[Role] {
-  return ROLE_PERMISSIONS[role]
+export function getRolePermissions(role: Role) {
+  return ROLE_PERMISSIONS[role as keyof typeof ROLE_PERMISSIONS]
 }
 
 export function isFileTypeAllowed(mimeType: string): boolean {

@@ -161,6 +161,56 @@ export class RealtimeService {
     return () => this.unsubscribe(channelName)
   }
 
+  // Escalation subscriptions
+  subscribeToInspectionEscalation(
+    inspectionId: string,
+    callback: RealtimeCallback
+  ): RealtimeChannel {
+    const channelName = `escalation:${inspectionId}`
+    
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'escalations',
+          filter: `inspection_id=eq.${inspectionId}`
+        },
+        callback
+      )
+      .subscribe()
+
+    this.channels.set(channelName, channel)
+
+    return channel
+  }
+
+  // Manager-level escalation queue subscription (listens to all escalations)
+  subscribeToEscalationQueue(
+    callback: RealtimeCallback
+  ): RealtimeChannel {
+    const channelName = `escalation_queue`
+
+    const channel = supabase
+      .channel(channelName)
+      .on(
+        'postgres_changes',
+        {
+          event: '*',
+          schema: 'public',
+          table: 'escalations'
+        },
+        callback
+      )
+      .subscribe()
+
+    this.channels.set(channelName, channel)
+
+    return channel
+  }
+
   private unsubscribe(channelName: string): void {
     const channel = this.channels.get(channelName)
     if (channel) {

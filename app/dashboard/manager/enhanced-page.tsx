@@ -27,7 +27,7 @@ export default function EnhancedManagerDashboard() {
   })
 
   const { inspections, loading: inspectionsLoading } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR' | undefined,
     userId: profile?.id,
     autoRefresh: true
   })
@@ -41,7 +41,7 @@ export default function EnhancedManagerDashboard() {
     const monthAgo = new Date(now.getTime() - 30 * 24 * 60 * 60 * 1000)
 
     const timeframe = selectedTimeframe === 'week' ? weekAgo : monthAgo
-    const recentInspections = inspections.filter(i => new Date(i.created_at) > timeframe)
+    const recentInspections = inspections.filter(i => i.created_at && new Date(i.created_at) > timeframe)
 
     return {
       totalProjects: projects.length,
@@ -49,7 +49,7 @@ export default function EnhancedManagerDashboard() {
       totalInspections: inspections.length,
       pendingApprovals: inspections.filter(i => i.status === 'IN_REVIEW').length,
       overdueInspections: inspections.filter(i => 
-        i.due_date && new Date(i.due_date) < now && !['APPROVED', 'REJECTED'].includes(i.status)
+        i.due_date && new Date(i.due_date) < now && i.status && !['APPROVED', 'REJECTED'].includes(i.status)
       ).length,
       completionRate: inspections.length > 0 ? 
         Math.round((inspections.filter(i => i.status === 'APPROVED').length / inspections.length) * 100) : 0,
@@ -266,7 +266,7 @@ export default function EnhancedManagerDashboard() {
                             {inspection.priority}
                           </Badge>
                           <span className="text-xs text-gray-500">
-                            Submitted {new Date(inspection.updated_at).toLocaleDateString()}
+                            Submitted {inspection.updated_at ? new Date(inspection.updated_at).toLocaleDateString() : 'N/A'}
                           </span>
                         </div>
                       </div>

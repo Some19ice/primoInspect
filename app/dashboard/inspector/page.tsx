@@ -7,18 +7,24 @@ import { useRealtimeInspections } from '@/lib/hooks/use-realtime-inspections'
 import { useDashboardContext } from '@/components/layout/dashboard-layout'
 import { InspectionCard } from '@/components/inspections/inspection-card'
 import { EvidenceUpload } from '@/components/evidence/evidence-upload'
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
+import { useRouter } from 'next/navigation'
+import { AlertCircle, Upload, Map, RefreshCw, Plus } from 'lucide-react'
 
 export default function InspectorDashboard() {
   const { profile } = useSupabaseAuth()
   const { notificationCount } = useDashboardContext()
+  const router = useRouter()
+  const [showEvidenceUpload, setShowEvidenceUpload] = useState(false)
   
   // Real-time inspections assigned to this inspector
   const { 
     inspections, 
-    loading: inspectionsLoading 
+    loading: inspectionsLoading,
+    error: inspectionsError,
+    refresh
   } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR' | undefined,
     userId: profile?.id,
     autoRefresh: true
   })
@@ -45,7 +51,7 @@ export default function InspectorDashboard() {
     }).length
 
     const completed = inspections.filter(i => i.status === 'APPROVED').length
-    const pending = inspections.filter(i => ['PENDING', 'IN_REVIEW'].includes(i.status)).length
+    const pending = inspections.filter(i => i.status && ['PENDING', 'IN_REVIEW'].includes(i.status)).length
     const drafts = inspections.filter(i => i.status === 'DRAFT').length
 
     return {
@@ -85,7 +91,11 @@ export default function InspectorDashboard() {
   const recentInspections = useMemo(() => {
     return inspections
       .filter(i => i.status === 'DRAFT' || i.status === 'PENDING')
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .sort((a, b) => {
+        const aTime = a.updated_at ? new Date(a.updated_at).getTime() : 0
+        const bTime = b.updated_at ? new Date(b.updated_at).getTime() : 0
+        return bTime - aTime
+      })
       .slice(0, 3)
   }, [inspections])
 
@@ -98,7 +108,7 @@ export default function InspectorDashboard() {
     })
   }
 
-  const getPriorityColor = (priority: string) => {
+  const getPriorityColor = (priority: string | null) => {
     switch (priority) {
       case 'HIGH': return 'text-red-600 bg-red-50'
       case 'MEDIUM': return 'text-yellow-600 bg-yellow-50'
@@ -107,7 +117,7 @@ export default function InspectorDashboard() {
     }
   }
 
-  const getStatusColor = (status: string) => {
+  const getStatusColor = (status: string | null) => {
     switch (status) {
       case 'APPROVED': return 'text-green-600 bg-green-50'
       case 'REJECTED': return 'text-red-600 bg-red-50'
@@ -118,8 +128,50 @@ export default function InspectorDashboard() {
     }
   }
 
+  // Navigation handlers
+  const handleInspectionAction = (inspectionId: string, status?: string | null) => {
+    router.push(`/inspections/${inspectionId}`)
+  }
+
+  const handleNewInspection = () => {
+    router.push('/inspections/create')
+  }
+
+  const handleViewMap = () => {
+    router.push('/dashboard/inspector/map')
+  }
+
+  const handleSyncOffline = async () => {
+    if (refresh) {
+      await refresh()
+    }
+  }
+
   return (
     <div className="space-y-6">
+      {/* Error Banner */}
+      {inspectionsError && (
+        <Card className="border-red-200 bg-red-50">
+          <CardContent className="p-4">
+            <div className="flex items-center gap-3">
+              <AlertCircle className="h-5 w-5 text-red-600" />
+              <div className="flex-1">
+                <p className="text-sm font-medium text-red-800">Failed to load inspections</p>
+                <p className="text-xs text-red-600">{inspectionsError}</p>
+              </div>
+              <Button 
+                size="sm" 
+                variant="outline" 
+                onClick={() => refresh()}
+                className="text-red-600 border-red-600 hover:bg-red-100"
+              >
+                <RefreshCw className="h-4 w-4 mr-1" />
+                Retry
+              </Button>
+            </div>
+          </CardContent>
+        </Card>
+      )}
       {/* Inspector Stats - Mobile-first grid with real-time data */}
       <div className="grid grid-cols-2 gap-4">
         <Card>
@@ -201,19 +253,28 @@ export default function InspectorDashboard() {
                     </div>
                     <div className="flex items-center space-x-2">
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getPriorityColor(inspection.priority)}`}>
-                        {inspection.priority}
+                        {inspection.priority || 'N/A'}
                       </span>
                       <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(inspection.status)}`}>
-                        {inspection.status.replace('_', ' ')}
+                        {inspection.status ? inspection.status.replace('_', ' ') : 'N/A'}
                       </span>
                     </div>
                   </div>
                   <div className="flex space-x-2 mt-3">
-                    <Button size="sm" className="text-xs">
+                    <Button 
+                      size="sm" 
+                      className="text-xs"
+                      onClick={() => handleInspectionAction(inspection.id, inspection.status)}
+                    >
                       {inspection.status === 'DRAFT' ? 'Continue' : 'Review'}
                     </Button>
                     {inspection.status === 'DRAFT' && (
-                      <Button size="sm" variant="outline" className="text-xs">
+                      <Button 
+                        size="sm" 
+                        variant="outline" 
+                        className="text-xs"
+                        onClick={() => handleInspectionAction(inspection.id, inspection.status)}
+                      >
                         Submit
                       </Button>
                     )}
@@ -224,7 +285,11 @@ export default function InspectorDashboard() {
           ) : (
             <div className="text-center py-8">
               <p className="text-gray-500 mb-4">No inspections due today</p>
-              <Button variant="outline" size="sm">
+              <Button 
+                variant="outline" 
+                size="sm"
+                onClick={() => router.push('/inspections')}
+              >
                 View All Inspections
               </Button>
             </div>
@@ -258,11 +323,11 @@ export default function InspectorDashboard() {
                     <div>
                       <h4 className="font-medium text-sm">{inspection.title}</h4>
                       <p className="text-xs text-gray-500">
-                        Updated {new Date(inspection.updated_at).toLocaleDateString()}
+                        Updated {inspection.updated_at ? new Date(inspection.updated_at).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
                     <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(inspection.status)}`}>
-                      {inspection.status.replace('_', ' ')}
+                      {inspection.status ? inspection.status.replace('_', ' ') : 'N/A'}
                     </span>
                   </div>
                 </div>
@@ -282,27 +347,55 @@ export default function InspectorDashboard() {
         </CardHeader>
         <CardContent>
           <div className="grid grid-cols-2 gap-3">
-            <Button variant="outline" className="justify-start h-auto py-3">
+            <Button 
+              variant="outline" 
+              className="justify-start h-auto py-3"
+              onClick={handleNewInspection}
+            >
               <div className="text-left">
-                <div className="font-medium text-sm">New Inspection</div>
+                <div className="font-medium text-sm flex items-center gap-1">
+                  <Plus className="h-4 w-4" />
+                  New Inspection
+                </div>
                 <div className="text-xs text-gray-500">Start field work</div>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3">
+            <Button 
+              variant="outline" 
+              className="justify-start h-auto py-3"
+              onClick={() => setShowEvidenceUpload(!showEvidenceUpload)}
+            >
               <div className="text-left">
-                <div className="font-medium text-sm">Upload Evidence</div>
+                <div className="font-medium text-sm flex items-center gap-1">
+                  <Upload className="h-4 w-4" />
+                  Upload Evidence
+                </div>
                 <div className="text-xs text-gray-500">Photos & documents</div>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3">
+            <Button 
+              variant="outline" 
+              className="justify-start h-auto py-3"
+              onClick={handleSyncOffline}
+            >
               <div className="text-left">
-                <div className="font-medium text-sm">Sync Offline</div>
+                <div className="font-medium text-sm flex items-center gap-1">
+                  <RefreshCw className="h-4 w-4" />
+                  Sync Offline
+                </div>
                 <div className="text-xs text-gray-500">Update local data</div>
               </div>
             </Button>
-            <Button variant="outline" className="justify-start h-auto py-3">
+            <Button 
+              variant="outline" 
+              className="justify-start h-auto py-3"
+              onClick={handleViewMap}
+            >
               <div className="text-left">
-                <div className="font-medium text-sm">View Map</div>
+                <div className="font-medium text-sm flex items-center gap-1">
+                  <Map className="h-4 w-4" />
+                  View Map
+                </div>
                 <div className="text-xs text-gray-500">Site locations</div>
               </div>
             </Button>
@@ -310,8 +403,32 @@ export default function InspectorDashboard() {
         </CardContent>
       </Card>
 
-      {/* Evidence Upload Component */}
-      <EvidenceUpload inspectionId={todayInspections[0]?.id} />
+      {/* Evidence Upload Component - Conditionally rendered */}
+      {showEvidenceUpload && todayInspections.length > 0 && (
+        <EvidenceUpload 
+          inspectionId={todayInspections[0].id}
+          onUploadComplete={() => {
+            setShowEvidenceUpload(false)
+          }}
+        />
+      )}
+      
+      {showEvidenceUpload && todayInspections.length === 0 && (
+        <Card className="border-yellow-200 bg-yellow-50">
+          <CardContent className="p-4">
+            <p className="text-sm text-yellow-800">
+              No inspections available. Please create or select an inspection first.
+            </p>
+            <Button 
+              size="sm" 
+              className="mt-2"
+              onClick={handleNewInspection}
+            >
+              Create Inspection
+            </Button>
+          </CardContent>
+        </Card>
+      )}
     </div>
   )
 }

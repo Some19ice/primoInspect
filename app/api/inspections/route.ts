@@ -17,7 +17,11 @@ export async function GET(request: NextRequest) {
     const limit = Math.min(parseInt(searchParams.get('limit') || '20', 10), 100)
     const projectId = searchParams.get('projectId')
     const status = searchParams.get('status')?.split(',').filter(Boolean)
-    const assignedTo = searchParams.get('assignedTo')
+    const assignedTo = searchParams.get('assignedTo') || undefined
+
+    // Get userId and userRole from query params
+    const userId = searchParams.get('userId')
+    const userRole = searchParams.get('userRole') as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR' | null
 
     if (projectId) {
       // Get inspections for specific project
@@ -26,11 +30,9 @@ export async function GET(request: NextRequest) {
         {
           status,
           assignedTo,
-          userRole: (user as any)?.user_metadata?.role,
-          userId: user!.id,
-        },
-        page,
-        limit
+          page,
+          limit,
+        }
       )
 
       if (result.error) {
@@ -44,8 +46,37 @@ export async function GET(request: NextRequest) {
         inspections: result.data,
         pagination: result.pagination,
       })
-    } else {
-      // Get all inspections for user across projects
+    } else if (userId && userRole) {
+      // Get inspections for specific user based on their role
+      console.log('[API /api/inspections] Fetching for userId:', userId, 'role:', userRole)
+      
+      const result = await supabaseDatabase.getInspectionsForUser(
+        userId,
+        userRole
+      )
+
+      if (result.error) {
+        console.error('[API /api/inspections] Error:', result.error)
+        return NextResponse.json(
+          { error: 'Failed to fetch inspections' },
+          { status: 500 }
+        )
+      }
+
+      console.log('[API /api/inspections] Returning', result.data.length, 'inspections')
+      
+      return NextResponse.json({
+        inspections: result.data,
+        pagination: {
+          page: 1,
+          limit: result.data.length,
+          total: result.data.length,
+          hasNext: false,
+          hasPrev: false,
+        },
+      })
+    }
+      // No filters provided
       return NextResponse.json({
         inspections: [],
         pagination: {
@@ -56,7 +87,6 @@ export async function GET(request: NextRequest) {
           hasPrev: false,
         },
       })
-    }
   } catch (error) {
     console.error('Error fetching inspections:', error)
     return NextResponse.json(
@@ -120,7 +150,7 @@ export async function POST(request: NextRequest) {
       due_date: body.dueDate,
     })
 
-    if (result.error) {
+    if (result.error || !result.data) {
       console.error('Database error creating inspection:', result.error)
       return NextResponse.json(
         { error: 'Failed to create inspection', details: result.error },
@@ -128,7 +158,7 @@ export async function POST(request: NextRequest) {
       )
     }
 
-    const inspection = result.data
+    const inspection = result.data as any
 
     // Log audit trail
     await logAuditEvent('INSPECTION', inspection.id, 'CREATED', user!.id, {

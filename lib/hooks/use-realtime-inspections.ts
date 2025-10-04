@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabaseDatabase } from '@/lib/supabase/database'
 import { realtimeService } from '@/lib/supabase/realtime'
 import { Database } from '@/lib/supabase/types'
 
@@ -34,28 +33,56 @@ export function useRealtimeInspections(options: UseRealtimeInspectionsOptions = 
 
   // Fetch initial data
   const fetchInspections = useCallback(async () => {
-    if (!options.projectId) {
-      setInspections([])
-      setLoading(false)
-      return
-    }
-
     try {
       setError(null)
-      const result = await supabaseDatabase.getInspectionsForProject(
-        options.projectId,
-        {
-          userRole: options.userRole,
-          userId: options.userId,
-        }
-      )
 
-      if (result.error) {
-        setError(result.error.message)
-      } else {
-        setInspections(result.data as InspectionWithDetails[])
+      // Build query params
+      const params = new URLSearchParams()
+
+      // If projectId is provided, fetch inspections for that project
+      if (options.projectId) {
+        params.append('projectId', options.projectId)
+        if (options.userRole === 'INSPECTOR' && options.userId) {
+          params.append('assignedTo', options.userId)
+        }
       }
+      // If userId and userRole are provided (inspector dashboard case), fetch user-specific inspections
+      else if (options.userId && options.userRole) {
+        params.append('userId', options.userId)
+        params.append('userRole', options.userRole)
+      }
+      // Otherwise, return empty array
+      else {
+        console.log('[useRealtimeInspections] No userId/projectId provided, skipping fetch')
+        setInspections([])
+        setLoading(false)
+        return
+      }
+
+      const url = `/api/inspections?${params.toString()}`
+      console.log('[useRealtimeInspections] Fetching:', url)
+
+      // Call the API route
+      const response = await fetch(url, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+
+      console.log('[useRealtimeInspections] Response status:', response.status)
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch inspections' }))
+        console.error('[useRealtimeInspections] Error:', errorData)
+        throw new Error(errorData.error || 'Failed to fetch inspections')
+      }
+
+      const result = await response.json()
+      console.log('[useRealtimeInspections] Received inspections:', result.inspections?.length || 0)
+      setInspections(result.inspections as InspectionWithDetails[])
     } catch (err) {
+      console.error('[useRealtimeInspections] Fetch error:', err)
       setError(err instanceof Error ? err.message : 'Failed to fetch inspections')
     } finally {
       setLoading(false)
@@ -155,18 +182,26 @@ export function useRealtimeInspections(options: UseRealtimeInspectionsOptions = 
     )
 
     try {
-      const result = await supabaseDatabase.updateInspectionStatus(
-        inspectionId,
-        status,
-        additionalData
-      )
+      // Call the API route
+      const response = await fetch(`/api/inspections/${inspectionId}`, {
+        method: 'PUT',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          status,
+          ...additionalData
+        }),
+      })
 
-      if (result.error) {
+      if (!response.ok) {
         await fetchInspections()
-        throw new Error(typeof result.error === 'string' ? result.error : 'Failed to update inspection status')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to update inspection status' }))
+        throw new Error(errorData.error || 'Failed to update inspection status')
       }
 
-      return result.data
+      const result = await response.json()
+      return result
     } catch (error) {
       await fetchInspections()
       throw error
@@ -187,16 +222,30 @@ export function useRealtimeInspections(options: UseRealtimeInspectionsOptions = 
     }
 
     try {
-      const result = await supabaseDatabase.createInspection({
-        project_id: options.projectId,
-        ...inspectionData
+      // Call the API route
+      const response = await fetch('/api/inspections', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          projectId: options.projectId,
+          assignedTo: inspectionData.assigned_to,
+          title: inspectionData.title,
+          description: inspectionData.description,
+          priority: inspectionData.priority,
+          dueDate: inspectionData.due_date,
+          checklistId: inspectionData.checklist_id,
+        }),
       })
 
-      if (result.error) {
-        throw new Error(typeof result.error === 'string' ? result.error : 'Failed to create inspection')
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to create inspection' }))
+        throw new Error(errorData.error || 'Failed to create inspection')
       }
 
-      return result.data
+      const result = await response.json()
+      return result
     } catch (error) {
       throw error
     }
@@ -216,6 +265,7 @@ export function useRealtimeInspections(options: UseRealtimeInspectionsOptions = 
     return inspections.filter(inspection => 
       inspection.due_date &&
       new Date(inspection.due_date) < now &&
+      inspection.status &&
       !['APPROVED', 'REJECTED'].includes(inspection.status)
     )
   }, [inspections])
@@ -247,6 +297,7 @@ export function useRealtimeInspections(options: UseRealtimeInspectionsOptions = 
       overdue: inspections.filter(i => 
         i.due_date &&
         new Date(i.due_date) < new Date() &&
+        i.status &&
         !['APPROVED', 'REJECTED'].includes(i.status)
       ).length,
     }
@@ -262,7 +313,7 @@ function showStatusChangeNotification(inspection: Inspection) {
     REJECTED: 'Inspection rejected - requires revision ❌',
   }
 
-  const message = statusMessages[inspection.status] || `Inspection status updated to ${inspection.status}`
+  const message = inspection.status ? (statusMessages[inspection.status as keyof typeof statusMessages] || `Inspection status updated to ${inspection.status}`) : 'Inspection status updated'
   
   console.log(`🔔 ${inspection.title}: ${message}`)
   

@@ -15,7 +15,7 @@ export async function GET(
     // Get basic project info and KPIs
     const [projectResult, kpis] = await Promise.all([
       supabaseDatabase.getProjectById(id),
-      supabaseDatabase.getDashboardKPIs(user!.id, user!.role)
+      supabaseDatabase.getDashboardStats(user!.id, (user as any)?.user_metadata?.role || 'INSPECTOR')
     ])
     
     if (projectResult.error) {

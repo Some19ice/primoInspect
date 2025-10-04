@@ -65,18 +65,15 @@ export const POST = requireProjectManager()(async (request: AuthenticatedRequest
     const validatedData = CreateProjectSchema.parse(body)
 
     // Create project in Supabase database
-    const result = await supabaseDatabase.createProject(
-      {
-        name: validatedData.name,
-        description: validatedData.description,
-        start_date: validatedData.startDate.toISOString(),
-        end_date: validatedData.endDate?.toISOString(),
-        latitude: validatedData.location?.latitude,
-        longitude: validatedData.location?.longitude,
-        address: validatedData.location?.address,
-      },
-      request.user.id
-    )
+    const result = await supabaseDatabase.createProject({
+      name: validatedData.name,
+      description: validatedData.description,
+      start_date: validatedData.startDate.toISOString(),
+      end_date: validatedData.endDate?.toISOString(),
+      latitude: validatedData.location?.latitude,
+      longitude: validatedData.location?.longitude,
+      address: validatedData.location?.address,
+    })
 
     if (result.error) {
       console.error('Error creating project:', result.error)
@@ -105,7 +102,7 @@ export const POST = requireProjectManager()(async (request: AuthenticatedRequest
             name: template.name,
             description: template.description,
             version: template.version,
-            questions: template.questions,
+            questions: template.questions as any,
             created_by: request.user.id,
             is_active: true
           })

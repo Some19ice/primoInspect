@@ -11,10 +11,18 @@ export async function GET(
 
   try {
     const { id } = await params
-    
+
     const result = await supabaseDatabase.getInspectionById(id)
-    
-    if (result.error || !result.data) {
+
+    if (result.error) {
+      console.error('DB error in getInspectionById:', result.error)
+      return NextResponse.json(
+        { error: 'Failed to fetch inspection', details: result.error },
+        { status: 500 }
+      )
+    }
+
+    if (!result.data) {
       return NextResponse.json(
         { error: 'Inspection not found' },
         { status: 404 }
@@ -22,8 +30,8 @@ export async function GET(
     }
 
     return NextResponse.json(result.data)
-  } catch (error) {
-    console.error('Error in GET /api/inspections/[id]:', error)
+  } catch (err) {
+    console.error('Error in GET /api/inspections/[id]:', err)
     return NextResponse.json(
       { error: 'Failed to fetch inspection' },
       { status: 500 }

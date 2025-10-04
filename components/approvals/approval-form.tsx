@@ -71,7 +71,7 @@ export function ApprovalForm({
       const result = await supabaseDatabase.getActiveEscalation(inspectionId)
       
       if (!result.error && result.data) {
-        setEscalationStatus(result.data as EscalationStatus)
+        setEscalationStatus(result.data as unknown as EscalationStatus)
       }
     } catch (err) {
       // No active escalation found
@@ -114,7 +114,7 @@ export function ApprovalForm({
     // Subscribe to escalation queue changes using database service
     const channel = supabaseDatabase.subscribeToInspectionEscalation(inspectionId, (payload) => {
       if (payload.eventType === 'INSERT' || payload.eventType === 'UPDATE') {
-        setEscalationStatus(payload.new as EscalationStatus)
+        setEscalationStatus(payload.new as unknown as EscalationStatus)
       } else if (payload.eventType === 'DELETE') {
         setEscalationStatus(null)
       }
@@ -220,7 +220,7 @@ export function ApprovalForm({
                   </div>
                   <p className="text-blue-600 mt-1">{notification.message}</p>
                   <p className="text-blue-500 text-xs mt-1">
-                    {new Date(notification.created_at).toLocaleString()}
+                    {notification.created_at ? new Date(notification.created_at).toLocaleString() : 'N/A'}
                   </p>
                 </div>
               ))}

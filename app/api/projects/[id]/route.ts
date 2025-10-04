@@ -79,7 +79,7 @@ export async function DELETE(
     
     if (result.error) {
       return NextResponse.json(
-        { error: result.error.message || 'Failed to delete project' },
+        { error: (result.error as any)?.message || 'Failed to delete project' },
         { status: 400 }
       )
     }

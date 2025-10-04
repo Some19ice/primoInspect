@@ -26,7 +26,7 @@ export default function ExecutiveDashboard() {
     inspections, 
     loading: inspectionsLoading 
   } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR',
     userId: profile?.id,
     autoRefresh: true
   })
@@ -43,7 +43,7 @@ export default function ExecutiveDashboard() {
     }
 
     const totalProjects = projects.length
-    const activeInspections = inspections.filter(i => ['PENDING', 'IN_REVIEW'].includes(i.status)).length
+    const activeInspections = inspections.filter(i => i.status && ['PENDING', 'IN_REVIEW'].includes(i.status)).length
     const completedInspections = inspections.filter(i => i.status === 'APPROVED').length
     const completionRate = inspections.length > 0 ? Math.round((completedInspections / inspections.length) * 100) : 0
     const criticalIssues = inspections.filter(i => i.status === 'REJECTED' && i.priority === 'HIGH').length
@@ -59,7 +59,8 @@ export default function ExecutiveDashboard() {
   // Recent activity from inspections
   const recentActivity = useMemo(() => {
     return inspections
-      .sort((a, b) => new Date(b.updated_at).getTime() - new Date(a.updated_at).getTime())
+      .filter(i => i.updated_at) // Filter out items with null updated_at
+      .sort((a, b) => new Date(b.updated_at!).getTime() - new Date(a.updated_at!).getTime())
       .slice(0, 3)
       .map(inspection => ({
         id: inspection.id,
@@ -157,10 +158,10 @@ export default function ExecutiveDashboard() {
             <div className="space-y-3">
               {recentActivity.map((activity) => (
                 <div key={activity.id} className="flex items-center space-x-3 p-3 bg-gray-50 rounded-md">
-                  <div className={`w-2 h-2 ${getStatusColor(activity.status)} rounded-full`}></div>
+                  <div className={`w-2 h-2 ${getStatusColor(activity.status || 'DRAFT')} rounded-full`}></div>
                   <div className="flex-1">
                     <p className="text-sm font-medium">{activity.title}</p>
-                    <p className="text-xs text-gray-500">{formatDate(activity.updatedAt)}</p>
+                    <p className="text-xs text-gray-500">{formatDate(activity.updatedAt || new Date().toISOString())}</p>
                   </div>
                 </div>
               ))}

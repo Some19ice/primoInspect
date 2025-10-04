@@ -6,383 +6,704 @@ export type Json =
   | { [key: string]: Json | undefined }
   | Json[]
 
-export interface Database {
+export type Database = {
+  // Allows to automatically instantiate createClient with right options
+  // instead of createClient<Database, { PostgrestVersion: 'XX' }>(URL, KEY)
+  __InternalSupabase: {
+    PostgrestVersion: "13.0.5"
+  }
   public: {
     Tables: {
-      profiles: {
+      approvals: {
         Row: {
-          id: string
-          email: string
-          name: string
-          role: 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR'
-          avatar: string | null
-          is_active: boolean
-          created_at: string
-          last_login_at: string | null
-          updated_at: string
-        }
-        Insert: {
-          id: string
-          email: string
-          name: string
-          role?: 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR'
-          avatar?: string | null
-          is_active?: boolean
-          created_at?: string
-          last_login_at?: string | null
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          email?: string
-          name?: string
-          role?: 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR'
-          avatar?: string | null
-          is_active?: boolean
-          created_at?: string
-          last_login_at?: string | null
-          updated_at?: string
-        }
-      }
-      projects: {
-        Row: {
-          id: string
-          name: string
-          description: string | null
-          status: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED'
-          start_date: string
-          end_date: string | null
-          latitude: number | null
-          longitude: number | null
-          address: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          name: string
-          description?: string | null
-          status?: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED'
-          start_date: string
-          end_date?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          address?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          name?: string
-          description?: string | null
-          status?: 'ACTIVE' | 'COMPLETED' | 'ON_HOLD' | 'CANCELLED'
-          start_date?: string
-          end_date?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          address?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      inspections: {
-        Row: {
-          id: string
-          project_id: string
-          checklist_id: string
-          assigned_to: string
-          title: string
-          description: string | null
-          status: 'DRAFT' | 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED'
-          priority: 'LOW' | 'MEDIUM' | 'HIGH'
-          due_date: string | null
-          latitude: number | null
-          longitude: number | null
-          accuracy: number | null
-          address: string | null
-          responses: Json
-          rejection_count: number
-          created_at: string
-          updated_at: string
-          submitted_at: string | null
-          completed_at: string | null
-        }
-        Insert: {
-          id?: string
-          project_id: string
-          checklist_id: string
-          assigned_to: string
-          title: string
-          description?: string | null
-          status?: 'DRAFT' | 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED'
-          priority?: 'LOW' | 'MEDIUM' | 'HIGH'
-          due_date?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          accuracy?: number | null
-          address?: string | null
-          responses?: Json
-          rejection_count?: number
-          created_at?: string
-          updated_at?: string
-          submitted_at?: string | null
-          completed_at?: string | null
-        }
-        Update: {
-          id?: string
-          project_id?: string
-          checklist_id?: string
-          assigned_to?: string
-          title?: string
-          description?: string | null
-          status?: 'DRAFT' | 'PENDING' | 'IN_REVIEW' | 'APPROVED' | 'REJECTED'
-          priority?: 'LOW' | 'MEDIUM' | 'HIGH'
-          due_date?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          accuracy?: number | null
-          address?: string | null
-          responses?: Json
-          rejection_count?: number
-          created_at?: string
-          updated_at?: string
-          submitted_at?: string | null
-          completed_at?: string | null
-        }
-      }
-      evidence: {
-        Row: {
+          approver_id: string
+          attachments: Json | null
+          created_at: string | null
+          decision: string
+          escalation_reason: string | null
           id: string
           inspection_id: string
-          uploaded_by: string
-          filename: string
-          original_name: string
-          mime_type: string
-          file_size: number
-          url: string
-          thumbnail_url: string | null
-          latitude: number | null
-          longitude: number | null
-          accuracy: number | null
-          timestamp: string
-          verified: boolean
-          annotations: Json | null
-          metadata: Json | null
-          created_at: string
+          is_escalated: boolean | null
+          notes: string
+          previous_approval_id: string | null
+          review_date: string | null
         }
         Insert: {
+          approver_id: string
+          attachments?: Json | null
+          created_at?: string | null
+          decision: string
+          escalation_reason?: string | null
           id?: string
           inspection_id: string
-          uploaded_by: string
-          filename: string
-          original_name: string
-          mime_type: string
-          file_size: number
-          url: string
-          thumbnail_url?: string | null
-          latitude?: number | null
-          longitude?: number | null
-          accuracy?: number | null
-          timestamp: string
-          verified?: boolean
-          annotations?: Json | null
-          metadata?: Json | null
-          created_at?: string
+          is_escalated?: boolean | null
+          notes: string
+          previous_approval_id?: string | null
+          review_date?: string | null
         }
         Update: {
+          approver_id?: string
+          attachments?: Json | null
+          created_at?: string | null
+          decision?: string
+          escalation_reason?: string | null
           id?: string
           inspection_id?: string
-          uploaded_by?: string
-          filename?: string
-          original_name?: string
-          mime_type?: string
-          file_size?: number
-          url?: string
-          thumbnail_url?: string | null
+          is_escalated?: boolean | null
+          notes?: string
+          previous_approval_id?: string | null
+          review_date?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "approvals_approver_id_fkey"
+            columns: ["approver_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "approvals_previous_approval_id_fkey"
+            columns: ["previous_approval_id"]
+            isOneToOne: false
+            referencedRelation: "approvals"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      audit_logs: {
+        Row: {
+          action: string
+          entity_id: string
+          entity_type: string
+          id: string
+          metadata: Json | null
+          timestamp: string | null
+          user_id: string | null
+        }
+        Insert: {
+          action: string
+          entity_id: string
+          entity_type: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          action?: string
+          entity_id?: string
+          entity_type?: string
+          id?: string
+          metadata?: Json | null
+          timestamp?: string | null
+          user_id?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "audit_logs_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      checklists: {
+        Row: {
+          created_at: string | null
+          created_by: string
+          description: string | null
+          id: string
+          is_active: boolean | null
+          name: string
+          project_id: string
+          questions: Json
+          updated_at: string | null
+          version: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          created_by: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name: string
+          project_id: string
+          questions?: Json
+          updated_at?: string | null
+          version?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          created_by?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean | null
+          name?: string
+          project_id?: string
+          questions?: Json
+          updated_at?: string | null
+          version?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "checklists_created_by_fkey"
+            columns: ["created_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "checklists_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }      
+      vidence: {
+        Row: {
+    accuracy: number | null
+    annotations: Json | null
+    created_at: string | null
+    file_size: number
+    filename: string
+          id: string
+    inspection_id: string
+          latitude: number | null
+    longitude: number | null
+          metadata: Json | null
+    mime_type: string
+    original_name: string
+    thumbnail_url: string | null
+    timestamp: string
+    uploaded_by: string
+    url: string
+    verified: boolean | null
+        }
+        Insert: {
+          accuracy?: number | null
+          annotations?: Json | null
+          created_at?: string | null
+          file_size: number
+          filename: string
+          id?: string
+          inspection_id: string
           latitude?: number | null
           longitude?: number | null
-          accuracy?: number | null
-          timestamp?: string
-          verified?: boolean
-          annotations?: Json | null
           metadata?: Json | null
-          created_at?: string
+          mime_type: string
+          original_name: string
+          thumbnail_url?: string | null
+          timestamp: string
+          uploaded_by: string
+          url: string
+          verified?: boolean | null
         }
+        Update: {
+          accuracy?: number | null
+          annotations?: Json | null
+          created_at?: string | null
+          file_size?: number
+          filename?: string
+          id?: string
+          inspection_id?: string
+          latitude?: number | null
+          longitude?: number | null
+          metadata?: Json | null
+          mime_type?: string
+          original_name?: string
+          thumbnail_url?: string | null
+          timestamp?: string
+          uploaded_by?: string
+          url?: string
+          verified?: boolean | null
+        }
+  Relationships: [
+    {
+      foreignKeyName: "evidence_inspection_id_fkey"
+      columns: ["inspection_id"]
+      isOneToOne: false
+      referencedRelation: "inspections"
+      referencedColumns: ["id"]
+    },
+    {
+      foreignKeyName: "evidence_uploaded_by_fkey"
+      columns: ["uploaded_by"]
+      isOneToOne: false
+      referencedRelation: "profiles"
+      referencedColumns: ["id"]
+    },
+  ]
+}
+      inspections: {
+        Row: {
+          accuracy: number | null
+          address: string | null
+          assigned_to: string
+          checklist_id: string
+          completed_at: string | null
+          created_at: string | null
+          description: string | null
+          due_date: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          priority: string | null
+          project_id: string
+          rejection_count: number | null
+          responses: Json | null
+          status: string | null
+          submitted_at: string | null
+          title: string
+          updated_at: string | null
+        }
+        Insert: {
+          accuracy?: number | null
+          address?: string | null
+          assigned_to: string
+          checklist_id: string
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          priority?: string | null
+          project_id: string
+          rejection_count?: number | null
+          responses?: Json | null
+          status?: string | null
+          submitted_at?: string | null
+          title: string
+          updated_at?: string | null
+        }
+        Update: {
+          accuracy?: number | null
+          address?: string | null
+          assigned_to?: string
+          checklist_id?: string
+          completed_at?: string | null
+          created_at?: string | null
+          description?: string | null
+          due_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          priority?: string | null
+          project_id?: string
+          rejection_count?: number | null
+          responses?: Json | null
+          status?: string | null
+          submitted_at?: string | null
+          title?: string
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "inspections_assigned_to_fkey"
+            columns: ["assigned_to"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspections_checklist_id_fkey"
+            columns: ["checklist_id"]
+            isOneToOne: false
+            referencedRelation: "checklists"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "inspections_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       notifications: {
         Row: {
-          id: string
-          user_id: string
-          type: 'ASSIGNMENT' | 'STATUS_CHANGE' | 'APPROVAL_REQUIRED' | 'ESCALATION' | 'REPORT_READY'
-          title: string
-          message: string
-          related_entity_type: 'INSPECTION' | 'PROJECT' | 'APPROVAL' | 'REPORT'
-          related_entity_id: string
-          is_read: boolean
-          priority: 'LOW' | 'MEDIUM' | 'HIGH'
-          delivery_channel: 'IN_APP' | 'EMAIL' | 'PUSH'
-          scheduled_for: string | null
+          created_at: string | null
           delivered_at: string | null
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          type: 'ASSIGNMENT' | 'STATUS_CHANGE' | 'APPROVAL_REQUIRED' | 'ESCALATION' | 'REPORT_READY'
-          title: string
+          delivery_channel: string | null
+          id: string
+          is_read: boolean | null
           message: string
-          related_entity_type: 'INSPECTION' | 'PROJECT' | 'APPROVAL' | 'REPORT'
+          priority: string | null
           related_entity_id: string
-          is_read?: boolean
-          priority?: 'LOW' | 'MEDIUM' | 'HIGH'
-          delivery_channel?: 'IN_APP' | 'EMAIL' | 'PUSH'
-          scheduled_for?: string | null
+          related_entity_type: string
+          scheduled_for: string | null
+          title: string
+          type: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
           delivered_at?: string | null
-          created_at?: string
+          delivery_channel?: string | null
+          id?: string
+          is_read?: boolean | null
+          message: string
+          priority?: string | null
+          related_entity_id: string
+          related_entity_type: string
+          scheduled_for?: string | null
+          title: string
+          type: string
+          user_id: string
         }
         Update: {
+          created_at?: string | null
+          delivered_at?: string | null
+          delivery_channel?: string | null
           id?: string
-          user_id?: string
-          type?: 'ASSIGNMENT' | 'STATUS_CHANGE' | 'APPROVAL_REQUIRED' | 'ESCALATION' | 'REPORT_READY'
-          title?: string
+          is_read?: boolean | null
           message?: string
-          related_entity_type?: 'INSPECTION' | 'PROJECT' | 'APPROVAL' | 'REPORT'
+          priority?: string | null
           related_entity_id?: string
-          is_read?: boolean
-          priority?: 'LOW' | 'MEDIUM' | 'HIGH'
-          delivery_channel?: 'IN_APP' | 'EMAIL' | 'PUSH'
+          related_entity_type?: string
           scheduled_for?: string | null
-          delivered_at?: string | null
-          created_at?: string
-        }
-      }
-      // Enhanced Operational Workflow Tables (Session 2025-01-27)
-      conflict_resolutions: {
-        Row: {
-          id: string
-          inspection_id: string
-          triggered_by_evidence_ids: string[]
-          conflict_type: 'EVIDENCE_DISPUTE' | 'STATUS_CONFLICT' | 'LOCATION_MISMATCH'
-          description: string
-          status: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'ESCALATED'
-          assigned_manager_id: string | null
-          resolution_notes: string | null
-          resolved_at: string | null
-          created_at: string
-          updated_at: string
-        }
-        Insert: {
-          id?: string
-          inspection_id: string
-          triggered_by_evidence_ids: string[]
-          conflict_type: 'EVIDENCE_DISPUTE' | 'STATUS_CONFLICT' | 'LOCATION_MISMATCH'
-          description: string
-          status?: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'ESCALATED'
-          assigned_manager_id?: string | null
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-        Update: {
-          id?: string
-          inspection_id?: string
-          triggered_by_evidence_ids?: string[]
-          conflict_type?: 'EVIDENCE_DISPUTE' | 'STATUS_CONFLICT' | 'LOCATION_MISMATCH'
-          description?: string
-          status?: 'PENDING' | 'UNDER_REVIEW' | 'RESOLVED' | 'ESCALATED'
-          assigned_manager_id?: string | null
-          resolution_notes?: string | null
-          resolved_at?: string | null
-          created_at?: string
-          updated_at?: string
-        }
-      }
-      escalation_queue: {
-        Row: {
-          id: string
-          inspection_id: string
-          original_manager_id: string
-          escalation_reason: string
-          priority_level: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-          status: 'QUEUED' | 'NOTIFIED' | 'RESOLVED' | 'EXPIRED'
-          manager_last_seen: string | null
-          escalation_threshold_hours: number
-          notification_count: number
-          created_at: string
-          expires_at: string | null
-          resolved_at: string | null
-        }
-        Insert: {
-          id?: string
-          inspection_id: string
-          original_manager_id: string
-          escalation_reason: string
-          priority_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-          status?: 'QUEUED' | 'NOTIFIED' | 'RESOLVED' | 'EXPIRED'
-          manager_last_seen?: string | null
-          escalation_threshold_hours?: number
-          notification_count?: number
-          created_at?: string
-          expires_at?: string | null
-          resolved_at?: string | null
-        }
-        Update: {
-          id?: string
-          inspection_id?: string
-          original_manager_id?: string
-          escalation_reason?: string
-          priority_level?: 'LOW' | 'MEDIUM' | 'HIGH' | 'URGENT'
-          status?: 'QUEUED' | 'NOTIFIED' | 'RESOLVED' | 'EXPIRED'
-          manager_last_seen?: string | null
-          escalation_threshold_hours?: number
-          notification_count?: number
-          created_at?: string
-          expires_at?: string | null
-          resolved_at?: string | null
-        }
-      }
-      role_transitions: {
-        Row: {
-          id: string
-          user_id: string
-          from_role: string
-          to_role: string
-          effective_date: string
-          transition_type: 'PROJECT_BOUNDARY' | 'IMMEDIATE' | 'SCHEDULED'
-          affected_projects: string[] | null
-          new_projects_only: boolean
-          approved_by: string | null
-          status: 'PENDING' | 'ACTIVE' | 'COMPLETED'
-          created_at: string
-        }
-        Insert: {
-          id?: string
-          user_id: string
-          from_role: string
-          to_role: string
-          effective_date?: string
-          transition_type?: 'PROJECT_BOUNDARY' | 'IMMEDIATE' | 'SCHEDULED'
-          affected_projects?: string[] | null
-          new_projects_only?: boolean
-          approved_by?: string | null
-          status?: 'PENDING' | 'ACTIVE' | 'COMPLETED'
-          created_at?: string
-        }
-        Update: {
-          id?: string
+          title?: string
+          type?: string
           user_id?: string
-          from_role?: string
-          to_role?: string
-          effective_date?: string
-          transition_type?: 'PROJECT_BOUNDARY' | 'IMMEDIATE' | 'SCHEDULED'
-          affected_projects?: string[] | null
-          new_projects_only?: boolean
-          approved_by?: string | null
-          status?: 'PENDING' | 'ACTIVE' | 'COMPLETED'
-          created_at?: string
         }
+        Relationships: [
+          {
+            foreignKeyName: "notifications_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
       }
+      profiles: {
+        Row: {
+          avatar: string | null
+          created_at: string | null
+          email: string
+          id: string
+          is_active: boolean | null
+          last_login_at: string | null
+          name: string
+          role: string
+          updated_at: string | null
+        }
+        Insert: {
+          avatar?: string | null
+          created_at?: string | null
+          email: string
+          id: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          name: string
+          role?: string
+          updated_at?: string | null
+        }
+        Update: {
+          avatar?: string | null
+          created_at?: string | null
+          email?: string
+          id?: string
+          is_active?: boolean | null
+          last_login_at?: string | null
+          name?: string
+          role?: string
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      project_members: {
+        Row: {
+          created_at: string | null
+          id: string
+          project_id: string
+          role: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          project_id: string
+          role: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          project_id?: string
+          role?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "project_members_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "project_members_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      projects: {
+        Row: {
+          address: string | null
+          created_at: string | null
+          description: string | null
+          end_date: string | null
+          id: string
+          latitude: number | null
+          longitude: number | null
+          name: string
+          start_date: string
+          status: string | null
+          updated_at: string | null
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name: string
+          start_date: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Update: {
+          address?: string | null
+          created_at?: string | null
+          description?: string | null
+          end_date?: string | null
+          id?: string
+          latitude?: number | null
+          longitude?: number | null
+          name?: string
+          start_date?: string
+          status?: string | null
+          updated_at?: string | null
+        }
+        Relationships: []
+      }
+      reports: {
+        Row: {
+          created_at: string | null
+          expires_at: string | null
+          filters: Json
+          format: string
+          generated_at: string | null
+          generated_by: string
+          id: string
+          project_id: string
+          status: string | null
+          template_id: string | null
+          title: string
+          type: string
+          url: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          expires_at?: string | null
+          filters: Json
+          format: string
+          generated_at?: string | null
+          generated_by: string
+          id?: string
+          project_id: string
+          status?: string | null
+          template_id?: string | null
+          title: string
+          type: string
+          url?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          expires_at?: string | null
+          filters?: Json
+          format?: string
+          generated_at?: string | null
+          generated_by?: string
+          id?: string
+          project_id?: string
+          status?: string | null
+          template_id?: string | null
+          title?: string
+          type?: string
+          url?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "reports_generated_by_fkey"
+            columns: ["generated_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "reports_project_id_fkey"
+            columns: ["project_id"]
+            isOneToOne: false
+            referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+    }
+    Views: {
+      [_ in never]: never
+    }
+    Functions: {
+      [_ in never]: never
+    }
+    Enums: {
+      [_ in never]: never
+    }
+    CompositeTypes: {
+      [_ in never]: never
     }
   }
 }
+
+type DatabaseWithoutInternals = Omit<Database, "__InternalSupabase">
+
+type DefaultSchema = DatabaseWithoutInternals[Extract<keyof Database, "public">]
+
+export type Tables<
+  DefaultSchemaTableNameOrOptions extends
+  | keyof (DefaultSchema["Tables"] & DefaultSchema["Views"])
+  | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+  ? keyof (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])
+  : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? (DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"] &
+    DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Views"])[TableName] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : DefaultSchemaTableNameOrOptions extends keyof (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])
+  ? (DefaultSchema["Tables"] &
+    DefaultSchema["Views"])[DefaultSchemaTableNameOrOptions] extends {
+      Row: infer R
+    }
+  ? R
+  : never
+  : never
+
+export type TablesInsert<
+  DefaultSchemaTableNameOrOptions extends
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Insert: infer I
+  }
+  ? I
+  : never
+  : never
+
+export type TablesUpdate<
+  DefaultSchemaTableNameOrOptions extends
+  | keyof DefaultSchema["Tables"]
+  | { schema: keyof DatabaseWithoutInternals },
+  TableName extends DefaultSchemaTableNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+  ? keyof DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"]
+  : never = never,
+> = DefaultSchemaTableNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[DefaultSchemaTableNameOrOptions["schema"]]["Tables"][TableName] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : DefaultSchemaTableNameOrOptions extends keyof DefaultSchema["Tables"]
+  ? DefaultSchema["Tables"][DefaultSchemaTableNameOrOptions] extends {
+    Update: infer U
+  }
+  ? U
+  : never
+  : never
+
+export type Enums<
+  DefaultSchemaEnumNameOrOptions extends
+  | keyof DefaultSchema["Enums"]
+  | { schema: keyof DatabaseWithoutInternals },
+  EnumName extends DefaultSchemaEnumNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+  ? keyof DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"]
+  : never = never,
+> = DefaultSchemaEnumNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+  }
+  ? DatabaseWithoutInternals[DefaultSchemaEnumNameOrOptions["schema"]]["Enums"][EnumName]
+  : DefaultSchemaEnumNameOrOptions extends keyof DefaultSchema["Enums"]
+  ? DefaultSchema["Enums"][DefaultSchemaEnumNameOrOptions]
+  : never
+
+export type CompositeTypes<
+  PublicCompositeTypeNameOrOptions extends
+  | keyof DefaultSchema["CompositeTypes"]
+  | { schema: keyof DatabaseWithoutInternals },
+  CompositeTypeName extends PublicCompositeTypeNameOrOptions extends {
+    schema: keyof DatabaseWithoutInternals
+  }
+  ? keyof DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"]
+  : never = never,
+> = PublicCompositeTypeNameOrOptions extends {
+  schema: keyof DatabaseWithoutInternals
+}
+  ? DatabaseWithoutInternals[PublicCompositeTypeNameOrOptions["schema"]]["CompositeTypes"][CompositeTypeName]
+  : PublicCompositeTypeNameOrOptions extends keyof DefaultSchema["CompositeTypes"]
+  ? DefaultSchema["CompositeTypes"][PublicCompositeTypeNameOrOptions]
+  : never
+
+export const Constants = {
+  public: {
+    Enums: {},
+  },
+} as const

@@ -4,12 +4,42 @@ import { supabaseDatabase } from '@/lib/supabase/database'
 
 export async function GET(request: NextRequest) {
   const { user, error } = await withSupabaseAuth(request, { 
-    requiredRoles: ['EXECUTIVE', 'PROJECT_MANAGER'] 
+    requiredRoles: ['EXECUTIVE', 'PROJECT_MANAGER', 'INSPECTOR'] 
   })
   if (error) return error
 
   try {
-    const result = await supabaseDatabase.getEscalationQueueForManager(user!.id)
+    const { searchParams } = new URL(request.url)
+    const inspectionId = searchParams.get('inspectionId')
+    const managerId = searchParams.get('managerId')
+
+    // If inspectionId is provided, get active escalation for that inspection
+    if (inspectionId) {
+      const result = await supabaseDatabase.getActiveEscalation(inspectionId)
+      
+      if (result.error) {
+        // Check if it's just a "no rows" error which is fine
+        const errorCode = (result.error as any)?.code
+        if (errorCode && errorCode !== 'PGRST116') { // PGRST116 = no rows returned
+          return NextResponse.json(
+            { error: 'Failed to fetch escalation' },
+            { status: 500 }
+          )
+        }
+        // No escalation found is not an error
+        return NextResponse.json({
+          escalation: null
+        })
+      }
+
+      return NextResponse.json({
+        escalation: result.data
+      })
+    }
+
+    // Otherwise get escalation queue for manager
+    const userIdToQuery = managerId || user!.id
+    const result = await supabaseDatabase.getEscalationQueueForManager(userIdToQuery)
     
     if (result.error) {
       return NextResponse.json(

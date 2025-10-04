@@ -22,7 +22,7 @@ export default function EnhancedInspectorDashboard() {
   const { isOnline, isRealtimeConnected, forceSync } = useOfflineState()
   
   const { inspections, loading: inspectionsLoading } = useRealtimeInspections({
-    userRole: profile?.role,
+    userRole: profile?.role as 'EXECUTIVE' | 'PROJECT_MANAGER' | 'INSPECTOR' | undefined,
     userId: profile?.id,
     autoRefresh: true
   })
@@ -45,7 +45,7 @@ export default function EnhancedInspectorDashboard() {
     }).length
 
     const completed = inspections.filter(i => i.status === 'APPROVED').length
-    const pending = inspections.filter(i => ['PENDING', 'IN_REVIEW'].includes(i.status)).length
+    const pending = inspections.filter(i => i.status && ['PENDING', 'IN_REVIEW'].includes(i.status)).length
     const drafts = inspections.filter(i => i.status === 'DRAFT').length
 
     // Calculate efficiency (completed vs assigned)
@@ -211,7 +211,7 @@ export default function EnhancedInspectorDashboard() {
                               {inspection.priority}
                             </Badge>
                             <Badge variant="outline" className="text-xs">
-                              {inspection.status.replace('_', ' ')}
+                              {inspection.status ? inspection.status.replace('_', ' ') : 'N/A'}
                             </Badge>
                           </div>
                         </div>

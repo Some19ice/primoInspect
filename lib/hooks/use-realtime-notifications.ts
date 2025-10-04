@@ -1,7 +1,6 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { supabaseDatabase } from '@/lib/supabase/database'
 import { realtimeService } from '@/lib/supabase/realtime'
 import { Database } from '@/lib/supabase/types'
 
@@ -29,17 +28,23 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
 
     try {
       setError(null)
-      const result = await supabaseDatabase.getNotificationsForUser(
-        options.userId,
-        1,
-        options.maxNotifications || 50
-      )
-
-      if (result.error) {
-        setError(result.error.message)
-      } else {
-        setNotifications(result.data)
+      
+      // Call the API route
+      const limit = options.maxNotifications || 50
+      const response = await fetch(`/api/notifications?limit=${limit}`, {
+        credentials: 'include',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+      })
+      
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({ error: 'Failed to fetch notifications' }))
+        throw new Error(errorData.error || 'Failed to fetch notifications')
       }
+      
+      const result = await response.json()
+      setNotifications(result.notifications)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to fetch notifications')
     } finally {
@@ -117,12 +122,16 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
         )
       )
 
-      const result = await supabaseDatabase.markNotificationAsRead(notificationId)
+      // Call the API route
+      const response = await fetch(`/api/notifications/${notificationId}/read`, {
+        method: 'PATCH',
+      })
       
-      if (result.error) {
+      if (!response.ok) {
         // Revert on error
         await fetchNotifications()
-        throw new Error('Failed to mark notification as read')
+        const errorData = await response.json().catch(() => ({ error: 'Failed to mark notification as read' }))
+        throw new Error(errorData.error || 'Failed to mark notification as read')
       }
     } catch (error) {
       await fetchNotifications()
@@ -133,24 +142,27 @@ export function useRealtimeNotifications(options: UseRealtimeNotificationsOption
   // Mark all notifications as read
   const markAllAsRead = useCallback(async () => {
     try {
-      const unreadNotifications = notifications.filter(n => !n.is_read)
-      
       // Optimistic update
       setNotifications(current =>
         current.map(notification => ({ ...notification, is_read: true }))
       )
 
-      // Mark each unread notification as read
-      await Promise.all(
-        unreadNotifications.map(notification =>
-          supabaseDatabase.markNotificationAsRead(notification.id)
-        )
-      )
+      // Call the API route
+      const response = await fetch('/api/notifications/mark-all-read', {
+        method: 'PATCH',
+      })
+      
+      if (!response.ok) {
+        // Revert on error
+        await fetchNotifications()
+        const errorData = await response.json().catch(() => ({ error: 'Failed to mark all as read' }))
+        throw new Error(errorData.error || 'Failed to mark all as read')
+      }
     } catch (error) {
       await fetchNotifications()
       throw error
     }
-  }, [notifications, fetchNotifications])
+  }, [fetchNotifications])
 
   // Request browser notification permission
   const requestNotificationPermission = useCallback(async () => {

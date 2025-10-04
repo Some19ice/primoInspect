@@ -2,8 +2,31 @@ import { supabase } from './client'
 import { Database } from './types'
 import { supabaseDatabase } from './database'
 
-type ConflictResolution = Database['public']['Tables']['conflict_resolutions']['Row']
-type Evidence = Database['public']['Tables']['evidence']['Row']
+// Define types for tables not yet in generated types
+type ConflictResolution = {
+  id: string
+  inspection_id: string
+  evidence_id: string
+  conflict_type: string
+  detected_at: string | null
+  resolved_at: string | null
+  resolved_by: string | null
+  resolution_notes: string | null
+  status: string
+}
+
+type Evidence = {
+  id: string
+  inspection_id: string
+  uploaded_by: string
+  filename: string
+  file_size: number
+  mime_type: string
+  url: string
+  created_at: string | null
+  latitude?: number | null
+  longitude?: number | null
+}
 
 export class ConflictDetectionService {
   // Helper method to work around TypeScript issues

@@ -4,23 +4,35 @@ import { useState, useEffect } from 'react'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import {
+  Card,
+  CardContent,
+  CardDescription,
+  CardHeader,
+  CardTitle,
+} from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from '@/components/ui/select'
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useSupabaseAuth } from '@/lib/hooks/use-supabase-auth'
 import { supabaseDatabase } from '@/lib/supabase/database'
-import { 
-  Calendar, 
-  Clock, 
-  User, 
-  FileCheck, 
+import {
+  Calendar,
+  Clock,
+  User,
+  FileCheck,
   AlertTriangle,
   CheckCircle,
-  Loader2
+  Loader2,
 } from 'lucide-react'
 
 const inspectionSchema = z.object({
@@ -42,18 +54,18 @@ interface EnhancedInspectionFormProps {
   initialData?: Partial<InspectionFormData>
 }
 
-export function EnhancedInspectionForm({ 
-  projectId, 
-  onSubmit, 
+export function EnhancedInspectionForm({
+  projectId,
+  onSubmit,
   onCancel,
-  initialData 
+  initialData,
 }: EnhancedInspectionFormProps) {
   const [checklists, setChecklists] = useState<any[]>([])
   const [inspectors, setInspectors] = useState<any[]>([])
   const [projects, setProjects] = useState<any[]>([])
   const [isLoading, setIsLoading] = useState(false)
   const [isSubmitting, setIsSubmitting] = useState(false)
-  
+
   const { profile } = useSupabaseAuth()
   const { toast } = useToast()
 
@@ -70,31 +82,53 @@ export function EnhancedInspectionForm({
   useEffect(() => {
     const loadFormData = async () => {
       if (!profile?.id) return
-      
+
       setIsLoading(true)
       try {
-        // Load checklists with projects separately if needed
+        // Load checklists and projects
         const [checklistResult, projectResult] = await Promise.all([
           supabaseDatabase.getChecklists(),
-          profile.role === 'PROJECT_MANAGER' ? supabaseDatabase.getProjectsForUser(profile.id) : Promise.resolve({ data: [] })
+          profile.role === 'PROJECT_MANAGER'
+            ? supabaseDatabase.getProjectsForUser(profile.id)
+            : Promise.resolve({ data: [] }),
         ])
 
         if (checklistResult.data) setChecklists(checklistResult.data)
         if (projectResult.data) setProjects(projectResult.data)
 
-        // For now, create mock inspector data - this should be replaced with actual project member fetching
-        if (projectId) {
-          setInspectors([
-            { id: 'mock-inspector-1', name: 'Mock Inspector', email: 'inspector@example.com', role: 'INSPECTOR' }
-          ])
-        }
+        // Load inspectors for the selected project
+        if (projectId || form.watch('projectId')) {
+          const selectedProjectId = projectId || form.watch('projectId')
+          const projectResult =
+            await supabaseDatabase.getProjectById(selectedProjectId)
 
+          if ((projectResult.data as any)?.project_members) {
+            const projectInspectors = (
+              projectResult.data as any
+            ).project_members
+              .filter(
+                (member: any) =>
+                  member.profiles &&
+                  (member.profiles.role === 'INSPECTOR' ||
+                    member.role === 'INSPECTOR')
+              )
+              .map((member: any) => ({
+                id: member.profiles.id,
+                name: member.profiles.name,
+                email: member.profiles.email,
+                role: member.profiles.role,
+              }))
+
+            setInspectors(projectInspectors)
+          }
+        }
       } catch (error) {
         console.error('Failed to load form data:', error)
         toast({
-          title: "Loading Error",
-          description: "Failed to load form data. Please refresh and try again.",
-          variant: "destructive",
+          title: 'Loading Error',
+          description:
+            'Failed to load form data. Please refresh and try again.',
+          variant: 'destructive',
         })
       } finally {
         setIsLoading(false)
@@ -102,7 +136,48 @@ export function EnhancedInspectionForm({
     }
 
     loadFormData()
-  }, [profile?.id, projectId, toast])
+  }, [profile?.id, toast])
+
+  // Separate effect to load inspectors when project changes
+  useEffect(() => {
+    const loadInspectors = async () => {
+      const selectedProjectId = projectId || form.watch('projectId')
+      if (!selectedProjectId) {
+        setInspectors([])
+        return
+      }
+
+      try {
+        const projectResult =
+          await supabaseDatabase.getProjectById(selectedProjectId)
+
+        if ((projectResult.data as any)?.project_members) {
+          const projectInspectors = (projectResult.data as any).project_members
+            .filter(
+              (member: any) =>
+                member.profiles &&
+                (member.profiles.role === 'INSPECTOR' ||
+                  member.role === 'INSPECTOR')
+            )
+            .map((member: any) => ({
+              id: member.profiles.id,
+              name: member.profiles.name,
+              email: member.profiles.email,
+              role: member.profiles.role,
+            }))
+
+          setInspectors(projectInspectors)
+        } else {
+          setInspectors([])
+        }
+      } catch (error) {
+        console.error('Failed to load inspectors:', error)
+        setInspectors([])
+      }
+    }
+
+    loadInspectors()
+  }, [projectId, form.watch('projectId')])
 
   const handleSubmit = async (data: InspectionFormData) => {
     if (!profile?.id) return
@@ -116,7 +191,7 @@ export function EnhancedInspectionForm({
         body: JSON.stringify({
           ...data,
           createdBy: profile.id,
-          status: 'ASSIGNED'
+          status: 'ASSIGNED',
         }),
       })
 
@@ -127,7 +202,7 @@ export function EnhancedInspectionForm({
       const result = await response.json()
 
       toast({
-        title: "Inspection Created",
+        title: 'Inspection Created',
         description: `"${data.title}" has been assigned to the inspector.`,
       })
 
@@ -138,13 +213,12 @@ export function EnhancedInspectionForm({
 
       // Reset form
       form.reset()
-
     } catch (error) {
       console.error('Failed to create inspection:', error)
       toast({
-        title: "Creation Failed",
-        description: "Failed to create inspection. Please try again.",
-        variant: "destructive",
+        title: 'Creation Failed',
+        description: 'Failed to create inspection. Please try again.',
+        variant: 'destructive',
       })
     } finally {
       setIsSubmitting(false)
@@ -153,11 +227,16 @@ export function EnhancedInspectionForm({
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'CRITICAL': return 'bg-red-100 text-red-800'
-      case 'HIGH': return 'bg-orange-100 text-orange-800'
-      case 'MEDIUM': return 'bg-yellow-100 text-yellow-800'
-      case 'LOW': return 'bg-green-100 text-green-800'
-      default: return 'bg-gray-100 text-gray-800'
+      case 'CRITICAL':
+        return 'bg-red-100 text-red-800'
+      case 'HIGH':
+        return 'bg-orange-100 text-orange-800'
+      case 'MEDIUM':
+        return 'bg-yellow-100 text-yellow-800'
+      case 'LOW':
+        return 'bg-green-100 text-green-800'
+      default:
+        return 'bg-gray-100 text-gray-800'
     }
   }
 
@@ -190,19 +269,19 @@ export function EnhancedInspectionForm({
           {/* Project Selection (if not pre-selected) */}
           {!projectId && profile?.role === 'PROJECT_MANAGER' && (
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <FileCheck className="h-4 w-4" />
                 Project *
               </label>
               <Select
                 value={form.watch('projectId')}
-                onValueChange={(value) => form.setValue('projectId', value)}
+                onValueChange={value => form.setValue('projectId', value)}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select project" />
                 </SelectTrigger>
                 <SelectContent>
-                  {projects.map((project) => (
+                  {projects.map(project => (
                     <SelectItem key={project.id} value={project.id}>
                       {project.name}
                     </SelectItem>
@@ -210,7 +289,9 @@ export function EnhancedInspectionForm({
                 </SelectContent>
               </Select>
               {form.formState.errors.projectId && (
-                <p className="text-red-600 text-sm">{form.formState.errors.projectId.message}</p>
+                <p className="text-sm text-red-600">
+                  {form.formState.errors.projectId.message}
+                </p>
               )}
             </div>
           )}
@@ -226,7 +307,9 @@ export function EnhancedInspectionForm({
               className="h-11"
             />
             {form.formState.errors.title && (
-              <p className="text-red-600 text-sm">{form.formState.errors.title.message}</p>
+              <p className="text-sm text-red-600">
+                {form.formState.errors.title.message}
+              </p>
             )}
           </div>
 
@@ -243,22 +326,22 @@ export function EnhancedInspectionForm({
           </div>
 
           {/* Checklist and Inspector Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Checklist Selection */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <FileCheck className="h-4 w-4" />
                 Checklist *
               </label>
               <Select
                 value={form.watch('checklistId')}
-                onValueChange={(value) => form.setValue('checklistId', value)}
+                onValueChange={value => form.setValue('checklistId', value)}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select checklist" />
                 </SelectTrigger>
                 <SelectContent>
-                  {checklists.map((checklist) => (
+                  {checklists.map(checklist => (
                     <SelectItem key={checklist.id} value={checklist.id}>
                       {checklist.name}
                     </SelectItem>
@@ -266,44 +349,57 @@ export function EnhancedInspectionForm({
                 </SelectContent>
               </Select>
               {form.formState.errors.checklistId && (
-                <p className="text-red-600 text-sm">{form.formState.errors.checklistId.message}</p>
+                <p className="text-sm text-red-600">
+                  {form.formState.errors.checklistId.message}
+                </p>
               )}
             </div>
 
             {/* Inspector Assignment */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <User className="h-4 w-4" />
                 Assign To *
               </label>
               <Select
                 value={form.watch('assignedTo')}
-                onValueChange={(value) => form.setValue('assignedTo', value)}
+                onValueChange={value => form.setValue('assignedTo', value)}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue placeholder="Select inspector" />
                 </SelectTrigger>
                 <SelectContent>
-                  {inspectors.map((inspector) => (
-                    <SelectItem key={inspector.id} value={inspector.id}>
-                      <div className="flex items-center gap-2">
-                        <span>{inspector.name || inspector.email}</span>
-                      </div>
+                  {inspectors.length > 0 ? (
+                    inspectors.map(inspector => (
+                      <SelectItem key={inspector.id} value={inspector.id}>
+                        <div className="flex items-center gap-2">
+                          <span>{inspector.name || inspector.email}</span>
+                          <span className="text-xs text-gray-500">
+                            ({inspector.role})
+                          </span>
+                        </div>
+                      </SelectItem>
+                    ))
+                  ) : (
+                    <SelectItem value="" disabled>
+                      No inspectors available for this project
                     </SelectItem>
-                  ))}
+                  )}
                 </SelectContent>
               </Select>
               {form.formState.errors.assignedTo && (
-                <p className="text-red-600 text-sm">{form.formState.errors.assignedTo.message}</p>
+                <p className="text-sm text-red-600">
+                  {form.formState.errors.assignedTo.message}
+                </p>
               )}
             </div>
           </div>
 
           {/* Priority and Due Date Row */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+          <div className="grid grid-cols-1 gap-4 md:grid-cols-2">
             {/* Priority */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <AlertTriangle className="h-4 w-4" />
                 Priority
               </label>
@@ -315,7 +411,7 @@ export function EnhancedInspectionForm({
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map((priority) => (
+                  {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map(priority => (
                     <SelectItem key={priority} value={priority}>
                       <div className="flex items-center gap-2">
                         <Badge className={getPriorityColor(priority)}>
@@ -330,7 +426,7 @@ export function EnhancedInspectionForm({
 
             {/* Due Date */}
             <div className="space-y-2">
-              <label className="text-sm font-medium text-gray-700 flex items-center gap-2">
+              <label className="flex items-center gap-2 text-sm font-medium text-gray-700">
                 <Calendar className="h-4 w-4" />
                 Due Date
               </label>
@@ -344,30 +440,30 @@ export function EnhancedInspectionForm({
           </div>
 
           {/* Actions */}
-          <div className="flex flex-col sm:flex-row gap-3 pt-4">
-            <Button 
-              type="submit" 
+          <div className="flex flex-col gap-3 pt-4 sm:flex-row">
+            <Button
+              type="submit"
               disabled={isSubmitting}
-              className="flex-1 h-11"
+              className="h-11 flex-1"
             >
               {isSubmitting ? (
                 <>
-                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
                   Creating...
                 </>
               ) : (
                 <>
-                  <CheckCircle className="h-4 w-4 mr-2" />
+                  <CheckCircle className="mr-2 h-4 w-4" />
                   Create Inspection
                 </>
               )}
             </Button>
             {onCancel && (
-              <Button 
-                type="button" 
-                variant="outline" 
+              <Button
+                type="button"
+                variant="outline"
                 onClick={onCancel}
-                className="flex-1 h-11"
+                className="h-11 flex-1"
               >
                 Cancel
               </Button>
