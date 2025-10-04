@@ -48,25 +48,8 @@ export default function InspectionExecutePage() {
   const [submitting, setSubmitting] = useState(false)
   const [location, setLocation] = useState<{ lat: number; lng: number } | null>(null)
   const [showEvidence, setShowEvidence] = useState(false)
-
-  // Fetch inspection data
-  useEffect(() => {
-    if (inspectionId && profile) {
-      fetchInspection()
-      // Get GPS location
-      if (navigator.geolocation) {
-        navigator.geolocation.getCurrentPosition(
-          (position) => {
-            setLocation({
-              lat: position.coords.latitude,
-              lng: position.coords.longitude
-            })
-          },
-          (error) => console.log('GPS error:', error)
-        )
-      }
-    }
-  }, [inspectionId, profile])
+  const [autoSaveEnabled, setAutoSaveEnabled] = useState(true)
+  const [lastSaved, setLastSaved] = useState<Date | null>(null)
 
   const fetchInspection = async () => {
     try {
@@ -103,6 +86,60 @@ export default function InspectionExecutePage() {
   const progress = questions.length > 0 
     ? Math.round(((currentQuestionIndex + 1) / questions.length) * 100)
     : 0
+
+  // Fetch inspection data
+  useEffect(() => {
+    if (inspectionId && profile) {
+      fetchInspection()
+      // Get GPS location
+      if (navigator.geolocation) {
+        navigator.geolocation.getCurrentPosition(
+          (position) => {
+            setLocation({
+              lat: position.coords.latitude,
+              lng: position.coords.longitude
+            })
+          },
+          (error) => console.log('GPS error:', error)
+        )
+      }
+    }
+  }, [inspectionId, profile])
+
+  // Keyboard shortcuts
+  useEffect(() => {
+    const handleKeyPress = (e: KeyboardEvent) => {
+      // Don't trigger if user is typing in an input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
+        return
+      }
+
+      if (e.key === 'ArrowRight' && currentQuestionIndex < questions.length - 1) {
+        nextQuestion()
+      } else if (e.key === 'ArrowLeft' && currentQuestionIndex > 0) {
+        prevQuestion()
+      } else if ((e.ctrlKey || e.metaKey) && e.key === 's') {
+        e.preventDefault()
+        saveDraft()
+      }
+    }
+
+    window.addEventListener('keydown', handleKeyPress)
+    return () => window.removeEventListener('keydown', handleKeyPress)
+  }, [currentQuestionIndex, questions.length])
+
+  // Auto-save responses periodically
+  useEffect(() => {
+    if (!autoSaveEnabled) return
+    
+    const autoSaveInterval = setInterval(() => {
+      if (Object.keys(responses).length > 0) {
+        saveDraft()
+      }
+    }, 30000) // Auto-save every 30 seconds
+
+    return () => clearInterval(autoSaveInterval)
+  }, [responses, autoSaveEnabled])
 
   // Save response for current question
   const saveResponse = useCallback((value: any, notes?: string) => {
@@ -149,6 +186,7 @@ export default function InspectionExecutePage() {
       })
 
       if (response.ok) {
+        setLastSaved(new Date())
         toast({
           title: "Draft Saved",
           description: "Your progress has been saved",
@@ -170,6 +208,23 @@ export default function InspectionExecutePage() {
 
   // Submit inspection
   const submitInspection = async () => {
+    // Check for unanswered required questions
+    const unansweredRequired = questions.filter(q => q.required && !isQuestionAnswered(q.id))
+    
+    if (unansweredRequired.length > 0) {
+      const firstUnanswered = questions.findIndex(q => q.required && !isQuestionAnswered(q.id))
+      
+      const confirmed = window.confirm(
+        `You have ${unansweredRequired.length} required question(s) unanswered.\n\n` +
+        `Would you like to go to the first unanswered question?`
+      )
+      
+      if (confirmed && firstUnanswered !== -1) {
+        setCurrentQuestionIndex(firstUnanswered)
+      }
+      return
+    }
+
     // Validate first
     const validationData = {
       ...inspection,
@@ -186,6 +241,16 @@ export default function InspectionExecutePage() {
       })
       return
     }
+
+    // Final confirmation
+    const finalConfirm = window.confirm(
+      `Are you sure you want to submit this inspection?\n\n` +
+      `• ${Object.keys(responses).length} questions answered\n` +
+      `• This will send the inspection for manager review\n\n` +
+      `You can still revise it if rejected.`
+    )
+    
+    if (!finalConfirm) return
 
     setSubmitting(true)
     try {
@@ -288,20 +353,88 @@ export default function InspectionExecutePage() {
           <div className="space-y-1">
             <div className="flex items-center justify-between text-sm text-gray-600">
               <span>Progress: {progress}%</span>
-              {location && (
-                <span className="flex items-center gap-1">
-                  <MapPin className="h-3 w-3" />
-                  GPS Active
-                </span>
-              )}
+              <div className="flex items-center gap-3">
+                {lastSaved && (
+                  <span className="text-xs text-green-600">
+                    Saved {lastSaved.toLocaleTimeString()}
+                  </span>
+                )}
+                {location && (
+                  <span className="flex items-center gap-1">
+                    <MapPin className="h-3 w-3" />
+                    GPS
+                  </span>
+                )}
+              </div>
             </div>
             <Progress value={progress} className="h-2" />
+            <div className="flex items-center justify-between text-xs text-gray-500">
+              <span>
+                {Object.keys(responses).length} of {questions.length} answered
+              </span>
+              <span>
+                {questions.filter(q => q.required && !isQuestionAnswered(q.id)).length} required remaining
+              </span>
+            </div>
           </div>
         </div>
       </div>
 
       {/* Question Content */}
       <div className="max-w-3xl mx-auto p-4 space-y-6">
+        {/* Question Overview - Collapsible */}
+        <Card className="bg-blue-50 border-blue-200">
+          <CardHeader className="pb-3">
+            <CardTitle className="text-sm flex items-center justify-between">
+              <span>Question Overview</span>
+              <Badge variant="outline" className="text-xs">
+                {Object.keys(responses).length}/{questions.length}
+              </Badge>
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            <div className="grid grid-cols-5 sm:grid-cols-10 gap-2">
+              {questions.map((q, idx) => {
+                const answered = isQuestionAnswered(q.id)
+                const isCurrent = idx === currentQuestionIndex
+                return (
+                  <button
+                    key={q.id}
+                    onClick={() => {
+                      setCurrentQuestionIndex(idx)
+                      setShowEvidence(false)
+                    }}
+                    className={`
+                      h-10 rounded-lg text-xs font-medium transition-all
+                      ${isCurrent ? 'ring-2 ring-blue-500 scale-110' : ''}
+                      ${answered ? 'bg-green-500 text-white' : 'bg-white text-gray-600'}
+                      ${q.required && !answered ? 'border-2 border-orange-500' : ''}
+                      hover:scale-105
+                    `}
+                    title={`Question ${idx + 1}${q.required ? ' (Required)' : ''}`}
+                  >
+                    {idx + 1}
+                  </button>
+                )
+              })}
+            </div>
+            <div className="mt-3 flex items-center gap-4 text-xs text-gray-600">
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-green-500 rounded"></div>
+                <span>Answered</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-white border-2 border-orange-500 rounded"></div>
+                <span>Required</span>
+              </div>
+              <div className="flex items-center gap-1">
+                <div className="w-3 h-3 bg-white border rounded"></div>
+                <span>Unanswered</span>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <div className="flex items-start justify-between">

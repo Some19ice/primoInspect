@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, User, Calendar, MapPin, CheckCircle, Image as ImageIcon } from 'lucide-react'
+import { ArrowLeft, FileText, User, Calendar, MapPin, CheckCircle, Image as ImageIcon, Clock, AlertTriangle } from 'lucide-react'
 import { useSupabaseAuth } from '@/lib/hooks/use-supabase-auth'
 import { useToast } from '@/lib/hooks/use-toast'
 
@@ -286,26 +286,158 @@ export default function InspectionDetailPage() {
             <CardDescription>Available actions for this inspection</CardDescription>
           </CardHeader>
           <CardContent>
-            <div className="flex gap-4">
-              <Button 
-                onClick={() => router.push(`/projects/${inspection.project_id}`)}
-                variant="outline"
-              >
-                View Project
-              </Button>
-              {inspection.status.toLowerCase() === 'draft' && (
-                <Button onClick={() => router.push(`/inspections/${inspection.id}/execute`)}>
-                  Start Inspection
-                </Button>
+            <div className="space-y-4">
+              {/* Inspector Actions */}
+              {profile?.id === inspection.assigned_to && (
+                <div className="space-y-3">
+                  {inspection.status === 'DRAFT' && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900">Ready to Start</h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            This inspection has been assigned to you. Click below to begin the inspection and fill out the checklist.
+                          </p>
+                          <Button 
+                            onClick={() => router.push(`/inspections/${inspection.id}/execute`)}
+                            className="mt-3"
+                          >
+                            Start Inspection
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  
+                  {inspection.status === 'PENDING' && (
+                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <FileText className="h-5 w-5 text-yellow-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-yellow-900">In Progress</h4>
+                          <p className="text-sm text-yellow-700 mt-1">
+                            Continue filling out the inspection checklist.
+                          </p>
+                          <Button 
+                            onClick={() => router.push(`/inspections/${inspection.id}/execute`)}
+                            className="mt-3"
+                          >
+                            Continue Inspection
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'IN_REVIEW' && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Clock className="h-5 w-5 text-purple-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-purple-900">Under Review</h4>
+                          <p className="text-sm text-purple-700 mt-1">
+                            Your inspection has been submitted and is awaiting manager approval.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'REJECTED' && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <AlertTriangle className="h-5 w-5 text-red-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-red-900">Requires Revision</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            This inspection was rejected and needs to be revised. Please review the feedback and resubmit.
+                          </p>
+                          <Button 
+                            onClick={() => router.push(`/inspections/${inspection.id}/execute`)}
+                            className="mt-3"
+                            variant="outline"
+                          >
+                            Revise Inspection
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'APPROVED' && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-green-900">Approved</h4>
+                          <p className="text-sm text-green-700 mt-1">
+                            This inspection has been approved by the project manager.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
               )}
-              {inspection.projects && (
+
+              {/* Manager Actions */}
+              {profile?.role === 'PROJECT_MANAGER' && profile?.id !== inspection.assigned_to && (
+                <div className="space-y-3">
+                  {inspection.status === 'DRAFT' && (
+                    <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <User className="h-5 w-5 text-gray-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-gray-900">Awaiting Inspector</h4>
+                          <p className="text-sm text-gray-700 mt-1">
+                            This inspection is assigned to {inspection.profiles?.name}. They will start it when ready.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'IN_REVIEW' && (
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-blue-900">Ready for Review</h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            The inspector has completed this inspection. Review and approve or request changes.
+                          </p>
+                          <div className="flex gap-2 mt-3">
+                            <Button 
+                              onClick={() => router.push(`/inspections/${inspection.id}/review`)}
+                            >
+                              Review Inspection
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Common Actions */}
+              <div className="flex flex-wrap gap-2 pt-2">
                 <Button 
-                  onClick={() => router.push(`/projects/${inspection.project_id}/inspections`)}
+                  onClick={() => router.push(`/projects/${inspection.project_id}`)}
                   variant="outline"
                 >
-                  View All Project Inspections
+                  View Project
                 </Button>
-              )}
+                {inspection.projects && (
+                  <Button 
+                    onClick={() => router.push(`/projects/${inspection.project_id}/inspections`)}
+                    variant="outline"
+                  >
+                    All Inspections
+                  </Button>
+                )}
+              </div>
             </div>
           </CardContent>
         </Card>

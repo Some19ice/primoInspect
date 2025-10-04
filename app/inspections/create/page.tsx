@@ -183,9 +183,10 @@ function CreateInspectionPageContent() {
 
       if (response.ok) {
         const inspection = await response.json()
+        const assigneeName = project?.project_members?.find(m => m.profiles.id === selectedAssignee)?.profiles.name || 'inspector'
         toast({
           title: "Success",
-          description: "Inspection created successfully",
+          description: `Inspection assigned to ${assigneeName}. They will be notified to start the inspection.`,
         })
         router.push(`/inspections/${inspection.id}`)
       } else {
@@ -248,8 +249,8 @@ function CreateInspectionPageContent() {
             Back
           </Button>
           <div className="flex-1">
-            <h1 className="text-2xl font-bold text-gray-900">Create New Inspection</h1>
-            <p className="text-gray-600">for {project.name}</p>
+            <h1 className="text-2xl font-bold text-gray-900">Create Inspection Assignment</h1>
+            <p className="text-gray-600">Assign an inspection to a team member for {project.name}</p>
           </div>
         </div>
 
@@ -426,9 +427,9 @@ function CreateInspectionPageContent() {
         {showAssignmentForm && (
           <Card>
             <CardHeader>
-              <CardTitle>Inspection Details</CardTitle>
+              <CardTitle>Inspection Assignment Details</CardTitle>
               <CardDescription>
-                Configure the inspection details and assignment
+                Configure the inspection and assign it to an inspector. They will start and complete the inspection.
               </CardDescription>
             </CardHeader>
             <CardContent>
@@ -524,7 +525,7 @@ function CreateInspectionPageContent() {
                     disabled={creating || !selectedAssignee || !title.trim()}
                     className="flex-1"
                   >
-                    {creating ? 'Creating...' : 'Create Inspection'}
+                    {creating ? 'Creating Assignment...' : 'Create & Assign Inspection'}
                   </Button>
                 </div>
               </div>

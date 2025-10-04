@@ -229,24 +229,22 @@ export function EvidenceUpload({
             <span className="text-sm text-orange-500">(Required)</span>
           )}
         </CardTitle>
-        <CardDescription>
-          {questionText ? (
-            <div className="space-y-1">
-              <div className="font-medium text-gray-700">
-                For question: {questionText}
-              </div>
-              <div className="text-sm">
-                Add photos, documents, or other evidence for this question. Max{' '}
-                {maxFiles} files, {maxFileSize}MB each.
-              </div>
+        {questionText ? (
+          <div className="space-y-1 text-sm text-gray-600">
+            <div className="font-medium text-gray-700">
+              For question: {questionText}
             </div>
-          ) : (
-            <>
-              Add photos, documents, or other evidence for this inspection. Max{' '}
+            <div>
+              Add photos, documents, or other evidence for this question. Max{' '}
               {maxFiles} files, {maxFileSize}MB each.
-            </>
-          )}
-        </CardDescription>
+            </div>
+          </div>
+        ) : (
+          <CardDescription>
+            Add photos, documents, or other evidence for this inspection. Max{' '}
+            {maxFiles} files, {maxFileSize}MB each.
+          </CardDescription>
+        )}
 
         {/* Existing Evidence Display */}
         {existingEvidence.length > 0 && (

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { useForm } from 'react-hook-form'
+import { useForm, Controller } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
 import { z } from 'zod'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
@@ -47,6 +47,7 @@ export function ChecklistBuilder({ projectId, initialData, onSave, onCancel }: C
   const [isSaving, setIsSaving] = useState(false)
   const [autoSaveTimer, setAutoSaveTimer] = useState<NodeJS.Timeout | null>(null)
   const [draftRestored, setDraftRestored] = useState(false)
+  const [lastSavedData, setLastSavedData] = useState<string>('')
 
   const form = useForm<ChecklistMetadata>({
     resolver: zodResolver(checklistMetadataSchema),
@@ -114,22 +115,29 @@ export function ChecklistBuilder({ projectId, initialData, onSave, onCancel }: C
     }
   }, [projectId, initialData, draftRestored, form, toast])
 
-  // Auto-save functionality
+  // Auto-save functionality - only trigger when data actually changes
   useEffect(() => {
-    if (autoSaveTimer) {
-      clearTimeout(autoSaveTimer)
+    const currentData = JSON.stringify({ metadata: form.getValues(), questions })
+    
+    // Only set timer if data has changed
+    if (currentData !== lastSavedData && (questions.length > 0 || form.getValues('name'))) {
+      if (autoSaveTimer) {
+        clearTimeout(autoSaveTimer)
+      }
+
+      const timer = setTimeout(() => {
+        handleSaveDraft()
+        setLastSavedData(currentData)
+      }, 5000) // Auto-save every 5 seconds after changes
+
+      setAutoSaveTimer(timer)
+
+      return () => {
+        if (timer) clearTimeout(timer)
+      }
     }
-
-    const timer = setTimeout(() => {
-      handleSaveDraft()
-    }, 5000) // Auto-save every 5 seconds
-
-    setAutoSaveTimer(timer)
-
-    return () => {
-      if (autoSaveTimer) clearTimeout(autoSaveTimer)
-    }
-  }, [form.watch(), questions])
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [questions, form.watch('name'), form.watch('description'), form.watch('projectType'), form.watch('estimatedDuration')])
 
   const handleAddQuestion = () => {
     setEditingQuestion(null)
@@ -289,21 +297,24 @@ export function ChecklistBuilder({ projectId, initialData, onSave, onCancel }: C
 
             <div className="space-y-2">
               <Label htmlFor="projectType">Project Type *</Label>
-              <Select
-                value={form.watch('projectType')}
-                onValueChange={(value: any) => form.setValue('projectType', value)}
-              >
-                <SelectTrigger>
-                  <SelectValue />
-                </SelectTrigger>
-                <SelectContent>
-                  <SelectItem value="SOLAR">Solar</SelectItem>
-                  <SelectItem value="WIND">Wind</SelectItem>
-                  <SelectItem value="BATTERY">Battery Storage</SelectItem>
-                  <SelectItem value="HYBRID">Hybrid</SelectItem>
-                  <SelectItem value="CUSTOM">Custom</SelectItem>
-                </SelectContent>
-              </Select>
+              <Controller
+                name="projectType"
+                control={form.control}
+                render={({ field }) => (
+                  <Select value={field.value} onValueChange={field.onChange}>
+                    <SelectTrigger>
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="SOLAR">Solar</SelectItem>
+                      <SelectItem value="WIND">Wind</SelectItem>
+                      <SelectItem value="BATTERY">Battery Storage</SelectItem>
+                      <SelectItem value="HYBRID">Hybrid</SelectItem>
+                      <SelectItem value="CUSTOM">Custom</SelectItem>
+                    </SelectContent>
+                  </Select>
+                )}
+              />
             </div>
           </div>
 

@@ -1,6 +1,6 @@
 'use client'
 
-import { useParams, useRouter } from 'next/navigation'
+import { useParams, useRouter, useSearchParams } from 'next/navigation'
 import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -8,7 +8,8 @@ import { Badge } from '@/components/ui/badge'
 import { Input } from '@/components/ui/input'
 import { Textarea } from '@/components/ui/textarea'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import { ArrowLeft, Users, FileText, Settings, Plus, Edit, Save, X, Trash2, CheckCircle, Clock, AlertCircle, UserMinus, UserCog, UserCheck } from 'lucide-react'
+import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
+import { ArrowLeft, Users, FileText, Settings, Plus, Edit, Save, X, Trash2, CheckCircle, Clock, AlertCircle, UserMinus, UserCog, UserCheck, BarChart3 } from 'lucide-react'
 import { useSupabaseAuth } from '@/lib/hooks/use-supabase-auth'
 import { useToast } from '@/lib/hooks/use-toast'
 import AddMemberModal from '@/components/project/AddMemberModal'
@@ -54,6 +55,7 @@ interface Project {
 export default function ProjectManagePage() {
   const params = useParams()
   const router = useRouter()
+  const searchParams = useSearchParams()
   const { profile } = useSupabaseAuth()
   const { toast } = useToast()
   const [project, setProject] = useState<Project | null>(null)
@@ -64,6 +66,7 @@ export default function ProjectManagePage() {
   const [showAddMemberModal, setShowAddMemberModal] = useState(false)
   const [showAssignModal, setShowAssignModal] = useState(false)
   const [selectedInspection, setSelectedInspection] = useState<Inspection | null>(null)
+  const [activeTab, setActiveTab] = useState(searchParams.get('tab') || 'overview')
   const [editForm, setEditForm] = useState({
     name: '',
     description: '',
@@ -72,6 +75,14 @@ export default function ProjectManagePage() {
   })
 
   const projectId = params.id as string
+
+  // Update tab when URL changes
+  useEffect(() => {
+    const tab = searchParams.get('tab')
+    if (tab) {
+      setActiveTab(tab)
+    }
+  }, [searchParams])
 
   useEffect(() => {
     if (projectId && profile) {
@@ -438,9 +449,28 @@ export default function ProjectManagePage() {
         </div>
 
         {/* Management Sections */}
-        <div className="space-y-6">
-          {/* Overview Section */}
-          <div className="space-y-6">
+        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+          <TabsList className="grid w-full grid-cols-4">
+            <TabsTrigger value="overview">
+              <BarChart3 className="h-4 w-4 mr-2" />
+              Overview
+            </TabsTrigger>
+            <TabsTrigger value="inspections">
+              <FileText className="h-4 w-4 mr-2" />
+              Inspections
+            </TabsTrigger>
+            <TabsTrigger value="team">
+              <Users className="h-4 w-4 mr-2" />
+              Team
+            </TabsTrigger>
+            <TabsTrigger value="settings">
+              <Settings className="h-4 w-4 mr-2" />
+              Settings
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="space-y-6">
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-5 gap-6">
               <Card>
                 <CardHeader className="pb-3">
@@ -530,10 +560,10 @@ export default function ProjectManagePage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Inspections Section */}
-          <div className="space-y-6">
+          {/* Inspections Tab */}
+          <TabsContent value="inspections" className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -631,10 +661,10 @@ export default function ProjectManagePage() {
                 )}
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Team Section */}
-          <div className="space-y-6">
+          {/* Team Tab */}
+          <TabsContent value="team" className="space-y-6">
             <Card>
               <CardHeader>
                 <div className="flex items-center justify-between">
@@ -711,10 +741,10 @@ export default function ProjectManagePage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
+          </TabsContent>
 
-          {/* Settings Section */}
-          <div className="space-y-6">
+          {/* Settings Tab */}
+          <TabsContent value="settings" className="space-y-6">
             <Card>
               <CardHeader>
                 <CardTitle>Project Settings</CardTitle>
@@ -853,8 +883,8 @@ export default function ProjectManagePage() {
                 </div>
               </CardContent>
             </Card>
-          </div>
-        </div>
+          </TabsContent>
+        </Tabs>
       </div>
 
       {/* Add Member Modal */}

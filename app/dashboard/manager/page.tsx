@@ -218,7 +218,7 @@ export default function ManagerDashboard() {
             </Button>
             <Button onClick={handleCreateInspection} className="flex-1 sm:flex-none">
               <Plus className="h-4 w-4 mr-2" />
-              New Inspection
+              Assign Inspection
             </Button>
           </div>
         </div>

@@ -85,8 +85,8 @@ export function ProjectList({
               </Badge>
             </div>
             
-            <div className="flex items-center justify-between mt-4 text-sm text-gray-600">
-              <div className="flex items-center space-x-4">
+            <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-3 mt-4 text-sm text-gray-600">
+              <div className="flex items-center flex-wrap gap-3">
                 <span className="flex items-center">
                   <Users className="h-4 w-4 mr-1" />
                   {project.members?.length || 0} members
@@ -102,10 +102,11 @@ export function ProjectList({
                 )}
               </div>
               
-              <div className="flex items-center space-x-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex items-center gap-2" onClick={(e) => e.stopPropagation()}>
                 <Button 
                   variant="outline" 
                   size="sm"
+                  className="flex-1 sm:flex-none"
                   onClick={() => onViewDetails?.(project.id)}
                 >
                   View Details
@@ -113,6 +114,7 @@ export function ProjectList({
                 <Button 
                   variant="default" 
                   size="sm"
+                  className="flex-1 sm:flex-none"
                   onClick={() => onManageProject?.(project.id)}
                 >
                   Manage

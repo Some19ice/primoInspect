@@ -130,6 +130,17 @@ export default function InspectorDashboard() {
 
   // Navigation handlers
   const handleInspectionAction = (inspectionId: string, status?: string | null) => {
+    // Route based on inspection status
+    if (status === 'DRAFT' || status === 'PENDING' || status === 'REJECTED') {
+      // Inspector can start/continue/revise these
+      router.push(`/inspections/${inspectionId}/execute`)
+    } else {
+      // For other statuses, go to detail page
+      router.push(`/inspections/${inspectionId}`)
+    }
+  }
+
+  const handleViewInspection = (inspectionId: string) => {
     router.push(`/inspections/${inspectionId}`)
   }
 
@@ -211,6 +222,65 @@ export default function InspectorDashboard() {
         </Card>
       </div>
 
+      {/* Assigned Inspections - Ready to Start */}
+      {stats.drafts > 0 && (
+        <Card className="border-blue-200 bg-blue-50">
+          <CardHeader>
+            <CardTitle className="text-lg flex items-center gap-2">
+              <AlertCircle className="h-5 w-5 text-blue-600" />
+              Assigned Inspections
+              <span className="px-2 py-1 bg-blue-600 text-white rounded-full text-xs">
+                {stats.drafts} ready to start
+              </span>
+            </CardTitle>
+            <CardDescription className="text-blue-900">
+              New inspections assigned to you - click to start
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-3">
+              {inspections
+                .filter(i => i.status === 'DRAFT')
+                .slice(0, 5)
+                .map((inspection) => (
+                  <div 
+                    key={inspection.id} 
+                    className="p-4 bg-white border border-blue-200 rounded-lg hover:shadow-md transition-all cursor-pointer"
+                    onClick={() => handleInspectionAction(inspection.id, 'DRAFT')}
+                  >
+                    <div className="flex items-start justify-between">
+                      <div className="flex-1">
+                        <h4 className="font-medium">{inspection.title}</h4>
+                        <p className="text-sm text-gray-600 mt-1">
+                          {inspection.description || 'No description provided'}
+                        </p>
+                        {inspection.due_date && (
+                          <p className="text-xs text-gray-500 mt-2">
+                            Due: {new Date(inspection.due_date).toLocaleDateString()} at {formatTime(inspection.due_date)}
+                          </p>
+                        )}
+                      </div>
+                      <span className={`px-3 py-1 rounded-full text-xs font-medium ${getPriorityColor(inspection.priority)}`}>
+                        {inspection.priority || 'MEDIUM'}
+                      </span>
+                    </div>
+                    <Button 
+                      size="sm" 
+                      className="mt-3 w-full"
+                      onClick={(e) => {
+                        e.stopPropagation()
+                        handleInspectionAction(inspection.id, 'DRAFT')
+                      }}
+                    >
+                      Start Inspection
+                    </Button>
+                  </div>
+                ))}
+            </div>
+          </CardContent>
+        </Card>
+      )}
+
       {/* Today's Schedule */}
       <Card>
         <CardHeader>
@@ -240,7 +310,11 @@ export default function InspectorDashboard() {
           ) : todayInspections.length > 0 ? (
             <div className="space-y-3">
               {todayInspections.map((inspection) => (
-                <div key={inspection.id} className="p-4 border rounded-lg">
+                <div 
+                  key={inspection.id} 
+                  className="p-4 border rounded-lg hover:shadow-md transition-shadow cursor-pointer"
+                  onClick={() => handleViewInspection(inspection.id)}
+                >
                   <div className="flex items-start justify-between">
                     <div className="flex-1">
                       <h4 className="font-medium text-sm">{inspection.title}</h4>
@@ -260,24 +334,24 @@ export default function InspectorDashboard() {
                       </span>
                     </div>
                   </div>
-                  <div className="flex space-x-2 mt-3">
+                  <div className="flex space-x-2 mt-3" onClick={(e) => e.stopPropagation()}>
                     <Button 
                       size="sm" 
-                      className="text-xs"
+                      className="text-xs flex-1"
                       onClick={() => handleInspectionAction(inspection.id, inspection.status)}
                     >
-                      {inspection.status === 'DRAFT' ? 'Continue' : 'Review'}
+                      {inspection.status === 'DRAFT' ? 'Start Inspection' : 
+                       inspection.status === 'PENDING' ? 'Continue' :
+                       inspection.status === 'REJECTED' ? 'Revise' : 'View Details'}
                     </Button>
-                    {inspection.status === 'DRAFT' && (
-                      <Button 
-                        size="sm" 
-                        variant="outline" 
-                        className="text-xs"
-                        onClick={() => handleInspectionAction(inspection.id, inspection.status)}
-                      >
-                        Submit
-                      </Button>
-                    )}
+                    <Button 
+                      size="sm" 
+                      variant="outline" 
+                      className="text-xs"
+                      onClick={() => handleViewInspection(inspection.id)}
+                    >
+                      Details
+                    </Button>
                   </div>
                 </div>
               ))}
@@ -318,17 +392,34 @@ export default function InspectorDashboard() {
           ) : recentInspections.length > 0 ? (
             <div className="space-y-3">
               {recentInspections.map((inspection) => (
-                <div key={inspection.id} className="p-3 bg-gray-50 rounded-lg">
+                <div 
+                  key={inspection.id} 
+                  className="p-3 bg-gray-50 rounded-lg hover:bg-gray-100 transition-colors cursor-pointer"
+                  onClick={() => handleViewInspection(inspection.id)}
+                >
                   <div className="flex items-center justify-between">
-                    <div>
+                    <div className="flex-1">
                       <h4 className="font-medium text-sm">{inspection.title}</h4>
                       <p className="text-xs text-gray-500">
                         Updated {inspection.updated_at ? new Date(inspection.updated_at).toLocaleDateString() : 'N/A'}
                       </p>
                     </div>
-                    <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(inspection.status)}`}>
-                      {inspection.status ? inspection.status.replace('_', ' ') : 'N/A'}
-                    </span>
+                    <div className="flex items-center gap-2">
+                      <span className={`px-2 py-1 rounded-full text-xs font-medium ${getStatusColor(inspection.status)}`}>
+                        {inspection.status ? inspection.status.replace('_', ' ') : 'N/A'}
+                      </span>
+                      <Button 
+                        size="sm" 
+                        variant="ghost"
+                        className="text-xs h-7"
+                        onClick={(e) => {
+                          e.stopPropagation()
+                          handleInspectionAction(inspection.id, inspection.status)
+                        }}
+                      >
+                        {inspection.status === 'DRAFT' ? 'Start' : 'Continue'}
+                      </Button>
+                    </div>
                   </div>
                 </div>
               ))}
