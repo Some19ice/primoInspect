@@ -121,13 +121,14 @@ export function QuestionEditor({
 
   return (
     <Dialog open={open} onOpenChange={onClose}>
-      <DialogContent className="max-w-3xl max-h-[90vh] overflow-y-auto">
+      <DialogContent className="max-h-[90vh] max-w-3xl overflow-y-auto">
         <DialogHeader>
           <DialogTitle>
             {initialData ? 'Edit Question' : 'Add Question'}
           </DialogTitle>
           <DialogDescription>
-            Create a question for your inspection checklist. Inspectors will see this in the field.
+            Create a question for your inspection checklist. Inspectors will see
+            this in the field.
           </DialogDescription>
         </DialogHeader>
 
@@ -152,7 +153,7 @@ export function QuestionEditor({
           {/* Question Type Selector */}
           <QuestionTypeSelector
             selectedType={selectedType}
-            onSelectType={(type) => form.setValue('type', type)}
+            onSelectType={type => form.setValue('type', type)}
           />
 
           {/* Category */}
@@ -165,7 +166,7 @@ export function QuestionEditor({
               list="category-suggestions"
             />
             <datalist id="category-suggestions">
-              {categories.map((cat) => (
+              {categories.map(cat => (
                 <option key={cat} value={cat} />
               ))}
             </datalist>
@@ -183,9 +184,9 @@ export function QuestionEditor({
               <div className="flex gap-2">
                 <Input
                   value={newOption}
-                  onChange={(e) => setNewOption(e.target.value)}
+                  onChange={e => setNewOption(e.target.value)}
                   placeholder="Add an option"
-                  onKeyPress={(e) => {
+                  onKeyPress={e => {
                     if (e.key === 'Enter') {
                       e.preventDefault()
                       handleAddOption()
@@ -202,14 +203,18 @@ export function QuestionEditor({
                 </Button>
               </div>
               {options.length > 0 && (
-                <div className="flex flex-wrap gap-2 mt-2">
+                <div className="mt-2 flex flex-wrap gap-2">
                   {options.map((option, index) => (
-                    <Badge key={index} variant="secondary" className="pl-2 pr-1">
+                    <Badge
+                      key={index}
+                      variant="secondary"
+                      className="pl-2 pr-1"
+                    >
                       {option}
                       <button
                         type="button"
                         onClick={() => handleRemoveOption(index)}
-                        className="ml-2 hover:bg-gray-300 rounded-full p-0.5"
+                        className="ml-2 rounded-full p-0.5 hover:bg-gray-300"
                       >
                         <X className="h-3 w-3" />
                       </button>
@@ -231,20 +236,28 @@ export function QuestionEditor({
               <Label>Validation Rules</Label>
               <div className="grid grid-cols-2 gap-4">
                 <div>
-                  <Label htmlFor="min" className="text-sm">Min Value</Label>
+                  <Label htmlFor="min" className="text-sm">
+                    Min Value
+                  </Label>
                   <Input
                     id="min"
                     type="number"
-                    {...form.register('validation.min', { valueAsNumber: true })}
+                    {...form.register('validation.min', {
+                      valueAsNumber: true,
+                    })}
                     placeholder="e.g., 0"
                   />
                 </div>
                 <div>
-                  <Label htmlFor="max" className="text-sm">Max Value</Label>
+                  <Label htmlFor="max" className="text-sm">
+                    Max Value
+                  </Label>
                   <Input
                     id="max"
                     type="number"
-                    {...form.register('validation.max', { valueAsNumber: true })}
+                    {...form.register('validation.max', {
+                      valueAsNumber: true,
+                    })}
                     placeholder="e.g., 100"
                   />
                 </div>
@@ -263,9 +276,9 @@ export function QuestionEditor({
           </div>
 
           {/* Settings */}
-          <div className="space-y-4 border rounded-lg p-4">
-            <h4 className="font-medium text-sm">Question Settings</h4>
-            
+          <div className="space-y-4 rounded-lg border p-4">
+            <h4 className="text-sm font-medium">Question Settings</h4>
+
             <div className="flex items-center justify-between">
               <div className="space-y-0.5">
                 <Label htmlFor="required">Required Question</Label>
@@ -276,7 +289,7 @@ export function QuestionEditor({
               <Switch
                 id="required"
                 checked={form.watch('required')}
-                onCheckedChange={(checked) => form.setValue('required', checked)}
+                onCheckedChange={checked => form.setValue('required', checked)}
               />
             </div>
 
@@ -290,7 +303,9 @@ export function QuestionEditor({
               <Switch
                 id="evidenceRequired"
                 checked={form.watch('evidenceRequired')}
-                onCheckedChange={(checked) => form.setValue('evidenceRequired', checked)}
+                onCheckedChange={checked =>
+                  form.setValue('evidenceRequired', checked)
+                }
               />
             </div>
           </div>
@@ -301,12 +316,13 @@ export function QuestionEditor({
               <CardTitle className="text-sm">Inspector Preview</CardTitle>
             </CardHeader>
             <CardContent>
-              <div className="bg-white rounded-lg p-4 border">
-                <div className="flex items-start justify-between mb-3">
-                  <p className="font-medium text-sm">
-                    {form.watch('question') || 'Your question will appear here...'}
+              <div className="rounded-lg border bg-white p-4">
+                <div className="mb-3 flex items-start justify-between">
+                  <p className="text-sm font-medium">
+                    {form.watch('question') ||
+                      'Your question will appear here...'}
                     {form.watch('required') && (
-                      <span className="text-red-500 ml-1">*</span>
+                      <span className="ml-1 text-red-500">*</span>
                     )}
                   </p>
                   <div className="flex gap-1">
@@ -316,15 +332,15 @@ export function QuestionEditor({
                       </Badge>
                     )}
                     {form.watch('evidenceRequired') && (
-                      <Badge className="bg-purple-100 text-purple-700 text-xs">
+                      <Badge className="bg-purple-100 text-xs text-purple-700">
                         Evidence
                       </Badge>
                     )}
                   </div>
                 </div>
-                
+
                 {form.watch('description') && (
-                  <p className="text-xs text-gray-500 mb-2">
+                  <p className="mb-2 text-xs text-gray-500">
                     {form.watch('description')}
                   </p>
                 )}
@@ -332,13 +348,17 @@ export function QuestionEditor({
                 {/* Type-specific preview */}
                 {selectedType === 'boolean' && (
                   <div className="space-y-2">
-                    <div className="flex items-center gap-2 p-2 rounded bg-green-50">
+                    <div className="flex items-center gap-2 rounded bg-green-50 p-2">
                       <input type="radio" disabled />
                       <span className="text-sm">Yes / Pass</span>
                     </div>
-                    <div className="flex items-center gap-2 p-2 rounded bg-red-50">
+                    <div className="flex items-center gap-2 rounded bg-red-50 p-2">
                       <input type="radio" disabled />
                       <span className="text-sm">No / Fail</span>
+                    </div>
+                    <div className="flex items-center gap-2 rounded bg-gray-50 p-2">
+                      <input type="radio" disabled />
+                      <span className="text-sm">Not Applicable</span>
                     </div>
                   </div>
                 )}
@@ -356,25 +376,31 @@ export function QuestionEditor({
                   <Textarea
                     placeholder="Enter text response..."
                     disabled
-                    className="bg-gray-50 resize-none"
+                    className="resize-none bg-gray-50"
                     rows={3}
                   />
                 )}
 
-                {(selectedType === 'select' || selectedType === 'multiselect') && (
+                {(selectedType === 'select' ||
+                  selectedType === 'multiselect') && (
                   <div className="space-y-2">
                     {options.length > 0 ? (
                       options.map((option, i) => (
-                        <div key={i} className="flex items-center gap-2 p-2 rounded bg-gray-50">
+                        <div
+                          key={i}
+                          className="flex items-center gap-2 rounded bg-gray-50 p-2"
+                        >
                           <input
-                            type={selectedType === 'select' ? 'radio' : 'checkbox'}
+                            type={
+                              selectedType === 'select' ? 'radio' : 'checkbox'
+                            }
                             disabled
                           />
                           <span className="text-sm">{option}</span>
                         </div>
                       ))
                     ) : (
-                      <p className="text-xs text-gray-400 italic">
+                      <p className="text-xs italic text-gray-400">
                         Add options to see preview
                       </p>
                     )}
@@ -382,17 +408,19 @@ export function QuestionEditor({
                 )}
 
                 {selectedType === 'photo' && (
-                  <div className="border-2 border-dashed rounded-lg p-4 text-center">
-                    <p className="text-sm text-gray-500">Photo capture interface</p>
+                  <div className="rounded-lg border-2 border-dashed p-4 text-center">
+                    <p className="text-sm text-gray-500">
+                      Photo capture interface
+                    </p>
                   </div>
                 )}
 
                 {selectedType === 'rating' && (
                   <div className="flex gap-2">
-                    {[1, 2, 3, 4, 5].map((n) => (
+                    {[1, 2, 3, 4, 5].map(n => (
                       <div
                         key={n}
-                        className="h-10 w-10 rounded-full border-2 border-gray-300 flex items-center justify-center text-sm"
+                        className="flex h-10 w-10 items-center justify-center rounded-full border-2 border-gray-300 text-sm"
                       >
                         {n}
                       </div>

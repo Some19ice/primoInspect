@@ -14,10 +14,11 @@ export async function POST(
     const body = await request.json()
 
     // Validate user has approval permissions
-    const userRole = (user as any)?.user_metadata?.role
+    const userRole = (user as any)?.role
     if (userRole !== 'PROJECT_MANAGER' && userRole !== 'EXECUTIVE') {
+      console.error('Authorization failed - User role:', userRole, 'User:', user)
       return NextResponse.json(
-        { error: 'Not authorized to approve inspections' },
+        { error: 'Not authorized to approve inspections', userRole },
         { status: 403 }
       )
     }

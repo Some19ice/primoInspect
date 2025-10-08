@@ -69,17 +69,27 @@ export default function ProjectDetailsPage() {
 
       // Calculate stats
       if (inspectionsResponse.ok && membersResponse.ok) {
-        const inspections = await inspectionsResponse.json()
+        const inspectionsData = await inspectionsResponse.json()
         const members = await membersResponse.json()
-        
+
+        // Handle both array and paginated response formats
+        const inspections = Array.isArray(inspectionsData)
+          ? inspectionsData
+          : inspectionsData.data || inspectionsData.inspections || []
+
         const now = new Date()
-        const completedCount = inspections.filter((i: any) => i.status === 'APPROVED').length
-        const pendingCount = inspections.filter((i: any) => 
-          i.status && !['APPROVED', 'REJECTED'].includes(i.status)
+        const completedCount = inspections.filter(
+          (i: any) => i.status === 'APPROVED'
         ).length
-        const overdueCount = inspections.filter((i: any) => 
-          i.due_date && new Date(i.due_date) < now && 
-          i.status && !['APPROVED', 'REJECTED'].includes(i.status)
+        const pendingCount = inspections.filter(
+          (i: any) => i.status && !['APPROVED', 'REJECTED'].includes(i.status)
+        ).length
+        const overdueCount = inspections.filter(
+          (i: any) =>
+            i.due_date &&
+            new Date(i.due_date) < now &&
+            i.status &&
+            !['APPROVED', 'REJECTED'].includes(i.status)
         ).length
 
         setStats({
@@ -87,7 +97,7 @@ export default function ProjectDetailsPage() {
           completedInspections: completedCount,
           pendingInspections: pendingCount,
           teamMembers: members.length,
-          overdueInspections: overdueCount
+          overdueInspections: overdueCount,
         })
       }
     } catch (error) {

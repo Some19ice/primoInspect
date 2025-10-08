@@ -121,25 +121,27 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
   return (
     <div className="min-h-screen bg-gray-50 pb-20">
       {/* Header */}
-      <div className="bg-white border-b sticky top-0 z-10">
+      <div className="sticky top-0 z-10 border-b bg-white">
         <div className="p-4">
-          <div className="flex items-center justify-between mb-2">
-            <h1 className="text-lg font-semibold truncate">{inspection.title}</h1>
+          <div className="mb-2 flex items-center justify-between">
+            <h1 className="truncate text-lg font-semibold">
+              {inspection.title}
+            </h1>
             <Badge variant="outline" className="text-xs">
               {currentStep + 1} of {questions.length}
             </Badge>
           </div>
-          
+
           {/* Progress Bar */}
-          <div className="w-full bg-gray-200 rounded-full h-2">
-            <div 
-              className="bg-blue-600 h-2 rounded-full transition-all duration-300"
+          <div className="h-2 w-full rounded-full bg-gray-200">
+            <div
+              className="h-2 rounded-full bg-blue-600 transition-all duration-300"
               style={{ width: `${progress}%` }}
             />
           </div>
-          
+
           {/* Location & Time */}
-          <div className="flex items-center gap-4 mt-2 text-xs text-gray-500">
+          <div className="mt-2 flex items-center gap-4 text-xs text-gray-500">
             {location && (
               <div className="flex items-center gap-1">
                 <MapPin className="h-3 w-3" />
@@ -159,62 +161,89 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
         {currentQuestion && (
           <Card>
             <CardHeader>
-              <CardTitle className="text-base">{currentQuestion.question}</CardTitle>
+              <CardTitle className="text-base">
+                {currentQuestion.question}
+              </CardTitle>
               {currentQuestion.required && (
-                <Badge variant="destructive" className="w-fit text-xs">Required</Badge>
+                <Badge variant="destructive" className="w-fit text-xs">
+                  Required
+                </Badge>
               )}
             </CardHeader>
             <CardContent className="space-y-4">
               {/* Question Type Specific UI */}
               {currentQuestion.type === 'boolean' && (
-                <div className="grid grid-cols-2 gap-3">
+                <div className="space-y-3">
+                  <div className="grid grid-cols-2 gap-3">
+                    <Button
+                      variant={
+                        responses[currentQuestion.id]?.value === true
+                          ? 'default'
+                          : 'outline'
+                      }
+                      onClick={() => handleResponse('value', true)}
+                      className="h-16 text-lg"
+                    >
+                      <CheckCircle className="mr-2 h-6 w-6" />
+                      Pass
+                    </Button>
+                    <Button
+                      variant={
+                        responses[currentQuestion.id]?.value === false
+                          ? 'outline'
+                          : 'outline'
+                      }
+                      onClick={() => handleResponse('value', false)}
+                      className={`h-16 text-lg ${responses[currentQuestion.id]?.value === false ? 'bg-red-500 text-white' : ''}`}
+                    >
+                      <AlertTriangle className="mr-2 h-6 w-6" />
+                      Fail
+                    </Button>
+                  </div>
                   <Button
-                    variant={responses[currentQuestion.id]?.value === true ? "default" : "outline"}
-                    onClick={() => handleResponse('value', true)}
-                    className="h-16 text-lg"
+                    variant={
+                      responses[currentQuestion.id]?.value === 'N/A'
+                        ? 'default'
+                        : 'outline'
+                    }
+                    onClick={() => handleResponse('value', 'N/A')}
+                    className="h-14 w-full bg-gray-100 text-base text-gray-700 hover:bg-gray-200"
                   >
-                    <CheckCircle className="h-6 w-6 mr-2" />
-                    Pass
-                  </Button>
-                  <Button
-                    variant={responses[currentQuestion.id]?.value === false ? "outline" : "outline"}
-                    onClick={() => handleResponse('value', false)}
-                    className={`h-16 text-lg ${responses[currentQuestion.id]?.value === false ? 'bg-red-500 text-white' : ''}`}
-                  >
-                    <AlertTriangle className="h-6 w-6 mr-2" />
-                    Fail
+                    Not Applicable
                   </Button>
                 </div>
               )}
 
               {currentQuestion.type === 'text' && (
                 <textarea
-                  className="w-full p-3 border rounded-lg resize-none"
+                  className="w-full resize-none rounded-lg border p-3"
                   rows={4}
                   placeholder="Enter your observations..."
                   value={responses[currentQuestion.id]?.value || ''}
-                  onChange={(e) => handleResponse('value', e.target.value)}
+                  onChange={e => handleResponse('value', e.target.value)}
                 />
               )}
 
               {currentQuestion.type === 'number' && (
                 <input
                   type="number"
-                  className="w-full p-3 border rounded-lg text-lg"
+                  className="w-full rounded-lg border p-3 text-lg"
                   placeholder="Enter measurement"
                   value={responses[currentQuestion.id]?.value || ''}
-                  onChange={(e) => handleResponse('value', parseFloat(e.target.value))}
+                  onChange={e =>
+                    handleResponse('value', parseFloat(e.target.value))
+                  }
                 />
               )}
 
               {/* Quick Actions */}
-              <div className="grid grid-cols-3 gap-3 mt-6">
+              <div className="mt-6 grid grid-cols-3 gap-3">
                 <Button
                   variant="outline"
                   onClick={capturePhoto}
                   className="h-16 flex-col"
                 >
-                  <Camera className="h-6 w-6 mb-1" />
+                  <Camera className="mb-1 h-6 w-6" />
                   Photo
                 </Button>
                 <Button
@@ -223,7 +252,7 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
                   className="h-16 flex-col"
                   disabled={isRecording}
                 >
-                  <Mic className="h-6 w-6 mb-1" />
+                  <Mic className="mb-1 h-6 w-6" />
                   {isRecording ? 'Recording...' : 'Voice'}
                 </Button>
                 <Button
@@ -231,20 +260,22 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
                   onClick={() => handleResponse('location_verified', true)}
                   className="h-16 flex-col"
                 >
-                  <Navigation className="h-6 w-6 mb-1" />
+                  <Navigation className="mb-1 h-6 w-6" />
                   Mark Location
                 </Button>
               </div>
 
               {/* Notes */}
               <div>
-                <label className="block text-sm font-medium mb-2">Additional Notes</label>
+                <label className="mb-2 block text-sm font-medium">
+                  Additional Notes
+                </label>
                 <textarea
-                  className="w-full p-3 border rounded-lg resize-none"
+                  className="w-full resize-none rounded-lg border p-3"
                   rows={2}
                   placeholder="Optional notes..."
                   value={responses[currentQuestion.id]?.notes || ''}
-                  onChange={(e) => handleResponse('notes', e.target.value)}
+                  onChange={e => handleResponse('notes', e.target.value)}
                 />
               </div>
             </CardContent>
@@ -257,7 +288,7 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
       <canvas ref={canvasRef} className="hidden" />
 
       {/* Bottom Navigation */}
-      <div className="fixed bottom-0 left-0 right-0 bg-white border-t p-4">
+      <div className="fixed bottom-0 left-0 right-0 border-t bg-white p-4">
         <div className="flex gap-3">
           <Button
             variant="outline"
@@ -267,17 +298,10 @@ export function MobileInspectionInterface({ inspection, onComplete, onSaveDraft 
           >
             Previous
           </Button>
-          <Button
-            variant="outline"
-            onClick={saveDraft}
-            className="px-6"
-          >
+          <Button variant="outline" onClick={saveDraft} className="px-6">
             Save Draft
           </Button>
-          <Button
-            onClick={nextStep}
-            className="flex-1"
-          >
+          <Button onClick={nextStep} className="flex-1">
             {currentStep === questions.length - 1 ? 'Complete' : 'Next'}
           </Button>
         </div>

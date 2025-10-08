@@ -154,7 +154,7 @@ export class SupabaseStorageService {
     // For now, return 0 - this should be implemented with database query
     try {
       const { data, error } = await supabase
-        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
+        .from('evidence')
         .select('file_size')
         .eq('inspection_id', inspectionId)
 

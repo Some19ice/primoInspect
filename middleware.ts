@@ -53,8 +53,22 @@ export async function middleware(request: NextRequest) {
     const authService = AuthService.getInstance()
     const authResult = await authService.authenticate(request)
 
-    // Redirect to signin if not authenticated
+    // Handle authentication failure
     if (authResult.error) {
+      // For API routes, return JSON error instead of redirecting
+      if (pathname.startsWith('/api/')) {
+        return NextResponse.json(
+          {
+            error: {
+              code: authResult.error.code,
+              message: authResult.error.message,
+            },
+          },
+          { status: authResult.error.statusCode }
+        )
+      }
+      
+      // For page routes, redirect to signin
       const redirectUrl = new URL('/auth/signin', request.url)
       redirectUrl.searchParams.set('redirectTo', pathname)
       return NextResponse.redirect(redirectUrl)

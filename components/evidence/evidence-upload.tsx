@@ -69,18 +69,28 @@ export function EvidenceUpload({
     questionId,
     onUploadComplete: (evidenceId: string, url: string) => {
       // Called for each successful upload
-      if (questionId && onEvidenceLinked) {
-        const completedEvidenceIds = evidenceFiles
-          .filter(f => f.status === 'completed')
-          .map(f => f.id)
-        onEvidenceLinked(questionId, [
-          ...existingEvidence,
-          ...completedEvidenceIds,
-        ])
+      console.log('[EvidenceUpload] Evidence uploaded successfully:', {
+        evidenceId,
+        questionId,
+        inspectionId,
+        url,
+      })
+
+      // Notify parent that evidence was uploaded
+      // Parent should refresh inspection data to get updated evidence list
+      if (onUploadComplete) {
+        // Create a minimal evidence object for the parent
+        const evidenceInfo = {
+          evidenceId,
+          url,
+          question_id: questionId,
+          inspection_id: inspectionId,
+        }
+        onUploadComplete([evidenceInfo] as any)
       }
     },
     onUploadError: (error: string) => {
-      console.error('Upload error:', error)
+      console.error('[EvidenceUpload] Upload error:', error)
     },
   })
 
@@ -172,6 +182,12 @@ export function EvidenceUpload({
   )
 
   const uploadFiles = useCallback(async () => {
+    console.log(
+      '[EvidenceUpload] Starting upload of',
+      files.filter(f => f.status === 'pending').length,
+      'files'
+    )
+
     // Add GPS location if available and required
     if (questionId) {
       navigator.geolocation?.getCurrentPosition(
@@ -186,16 +202,15 @@ export function EvidenceUpload({
             }
           })
         },
-        error => console.log('GPS not available:', error)
+        error => console.log('[EvidenceUpload] GPS not available:', error)
       )
     }
 
+    // Upload all files - onUploadComplete callback is called for each file
     await uploadAll()
-    if (onUploadComplete) {
-      const completedFiles = evidenceFiles.filter(f => f.status === 'completed')
-      onUploadComplete(completedFiles)
-    }
-  }, [uploadAll, evidenceFiles, onUploadComplete, questionId, files])
+
+    console.log('[EvidenceUpload] All uploads complete')
+  }, [uploadAll, questionId, files])
 
   const getFileIcon = (file: File) => {
     if (file.type.startsWith('image/')) return <FileImage className="h-4 w-4" />

@@ -103,31 +103,96 @@ export async function POST(request: NextRequest) {
 
   try {
     const body = await request.json()
+    console.log('[POST /api/inspections] Received request:', {
+      ...body,
+      userId: user?.id,
+    })
 
     // Basic validation
     if (!body.projectId || !body.checklistId || !body.title) {
+      const missing = []
+      if (!body.projectId) missing.push('projectId')
+      if (!body.checklistId) missing.push('checklistId')
+      if (!body.title) missing.push('title')
+
+      console.error('[POST /api/inspections] Missing required fields:', missing)
       return NextResponse.json(
-        { error: 'Missing required fields: projectId, checklistId, title' },
+        { error: `Missing required fields: ${missing.join(', ')}` },
         { status: 400 }
       )
     }
 
-    // Validate that the checklist exists and belongs to the project
-    const checklistResult = await supabaseDatabase.getChecklistById(body.checklistId)
+    // Validate that the checklist exists (either in database or as a template)
+    // First check if it's a database checklist
+    const checklistResult = await supabaseDatabase.getChecklistById(
+      body.checklistId
+    )
+
+    // If not found in database, check if it's a template ID
     if (checklistResult.error || !checklistResult.data) {
-      return NextResponse.json(
-        { error: 'Invalid checklist ID' },
-        { status: 400 }
+      const { CHECKLIST_TEMPLATES } = await import(
+        '@/lib/templates/checklist-templates'
+      )
+      const isTemplate = CHECKLIST_TEMPLATES.some(
+        t => t.id === body.checklistId
+      )
+
+      if (!isTemplate) {
+        console.error(
+          '[POST /api/inspections] Invalid checklist:',
+          body.checklistId,
+          checklistResult.error
+        )
+        return NextResponse.json(
+          {
+            error:
+              'Invalid checklist ID. Please select a valid checklist or template.',
+          },
+          { status: 400 }
+        )
+      }
+
+      // If it's a template, we need to create a checklist record for this inspection
+      // Templates can be used across projects, so we'll create a project-specific copy
+      const template = CHECKLIST_TEMPLATES.find(t => t.id === body.checklistId)!
+      const newChecklistResult = await supabaseDatabase.createChecklist({
+        project_id: body.projectId,
+        name: template.name,
+        description: template.description,
+        version: template.version,
+        questions: JSON.parse(JSON.stringify(template.questions)) as any,
+        created_by: user!.id,
+        is_active: true,
+      })
+
+      if (newChecklistResult.error || !newChecklistResult.data) {
+        console.error(
+          '[POST /api/inspections] Failed to create checklist from template:',
+          newChecklistResult.error
+        )
+        return NextResponse.json(
+          { error: 'Failed to create checklist from template' },
+          { status: 500 }
+        )
+      }
+
+      // Update checklistId to use the newly created checklist
+      body.checklistId = newChecklistResult.data.id
+      console.log(
+        '[POST /api/inspections] Created checklist from template:',
+        body.checklistId
       )
     }
 
     // Validate that the user is a member of the project
     const projectResult = await supabaseDatabase.getProjectById(body.projectId)
     if (projectResult.error || !projectResult.data) {
-      return NextResponse.json(
-        { error: 'Invalid project ID' },
-        { status: 400 }
+      console.error(
+        '[POST /api/inspections] Invalid project:',
+        body.projectId,
+        projectResult.error
       )
+      return NextResponse.json({ error: 'Invalid project ID' }, { status: 400 })
     }
 
     // Normalize priority to uppercase
@@ -140,7 +205,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Create inspection using database service
-    const result = await supabaseDatabase.createInspection({
+    const inspectionData = {
       project_id: body.projectId,
       checklist_id: body.checklistId,
       assigned_to: body.assignedTo || user!.id,
@@ -148,10 +213,13 @@ export async function POST(request: NextRequest) {
       description: body.description,
       priority: priority as 'LOW' | 'MEDIUM' | 'HIGH',
       due_date: body.dueDate,
-    })
+    }
+
+    console.log('[POST /api/inspections] Creating with data:', inspectionData)
+    const result = await supabaseDatabase.createInspection(inspectionData)
 
     if (result.error || !result.data) {
-      console.error('Database error creating inspection:', result.error)
+      console.error('[POST /api/inspections] Database error:', result.error)
       return NextResponse.json(
         { error: 'Failed to create inspection', details: result.error },
         { status: 500 }
@@ -195,11 +263,16 @@ export async function POST(request: NextRequest) {
       assignedTo: inspection.assigned_to,
     }
 
+    console.log(
+      '[POST /api/inspections] Successfully created inspection:',
+      inspection.id
+    )
     return NextResponse.json(responseData, { status: 201 })
-  } catch (error) {
-    console.error('Error creating inspection:', error)
+  } catch (error: any) {
+    console.error('[POST /api/inspections] Unexpected error:', error)
+    console.error('[POST /api/inspections] Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to create inspection' },
+      { error: 'Failed to create inspection', details: error.message },
       { status: 500 }
     )
   }

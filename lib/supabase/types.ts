@@ -169,26 +169,146 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
-      }      
-      vidence: {
+      }
+      conflict_resolutions: {
         Row: {
-    accuracy: number | null
-    annotations: Json | null
-    created_at: string | null
-    file_size: number
-    filename: string
+          assigned_manager_id: string | null
+          conflict_type: string
+          created_at: string | null
+          description: string
           id: string
-    inspection_id: string
+          inspection_id: string
+          resolution_notes: string | null
+          resolved_at: string | null
+          status: string | null
+          triggered_by_evidence_ids: string[]
+          updated_at: string | null
+        }
+        Insert: {
+          assigned_manager_id?: string | null
+          conflict_type: string
+          created_at?: string | null
+          description: string
+          id?: string
+          inspection_id: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          triggered_by_evidence_ids: string[]
+          updated_at?: string | null
+        }
+        Update: {
+          assigned_manager_id?: string | null
+          conflict_type?: string
+          created_at?: string | null
+          description?: string
+          id?: string
+          inspection_id?: string
+          resolution_notes?: string | null
+          resolved_at?: string | null
+          status?: string | null
+          triggered_by_evidence_ids?: string[]
+          updated_at?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "conflict_resolutions_assigned_manager_id_fkey"
+            columns: ["assigned_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "conflict_resolutions_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      escalation_queue: {
+        Row: {
+          created_at: string | null
+          escalation_reason: string
+          escalation_threshold_hours: number | null
+          expires_at: string | null
+          id: string
+          inspection_id: string
+          manager_last_seen: string | null
+          notification_count: number | null
+          original_manager_id: string
+          priority_level: string | null
+          resolved_at: string | null
+          status: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          escalation_reason: string
+          escalation_threshold_hours?: number | null
+          expires_at?: string | null
+          id?: string
+          inspection_id: string
+          manager_last_seen?: string | null
+          notification_count?: number | null
+          original_manager_id: string
+          priority_level?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          escalation_reason?: string
+          escalation_threshold_hours?: number | null
+          expires_at?: string | null
+          id?: string
+          inspection_id?: string
+          manager_last_seen?: string | null
+          notification_count?: number | null
+          original_manager_id?: string
+          priority_level?: string | null
+          resolved_at?: string | null
+          status?: string | null
+        }
+        Relationships: [
+          {
+            foreignKeyName: "escalation_queue_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "escalation_queue_original_manager_id_fkey"
+            columns: ["original_manager_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      evidence: {
+        Row: {
+          accuracy: number | null
+          annotations: Json | null
+          created_at: string | null
+          file_size: number
+          filename: string
+          id: string
+          inspection_id: string
           latitude: number | null
-    longitude: number | null
+          longitude: number | null
           metadata: Json | null
-    mime_type: string
-    original_name: string
-    thumbnail_url: string | null
-    timestamp: string
-    uploaded_by: string
-    url: string
-    verified: boolean | null
+          mime_type: string
+          original_name: string
+          public_url: string | null
+          question_id: string | null
+          storage_path: string | null
+          thumbnail_url: string | null
+          timestamp: string
+          uploaded_by: string
+          url: string
+          verified: boolean | null
         }
         Insert: {
           accuracy?: number | null
@@ -203,6 +323,9 @@ export type Database = {
           metadata?: Json | null
           mime_type: string
           original_name: string
+          public_url?: string | null
+          question_id?: string | null
+          storage_path?: string | null
           thumbnail_url?: string | null
           timestamp: string
           uploaded_by: string
@@ -222,29 +345,32 @@ export type Database = {
           metadata?: Json | null
           mime_type?: string
           original_name?: string
+          public_url?: string | null
+          question_id?: string | null
+          storage_path?: string | null
           thumbnail_url?: string | null
           timestamp?: string
           uploaded_by?: string
           url?: string
           verified?: boolean | null
         }
-  Relationships: [
-    {
-      foreignKeyName: "evidence_inspection_id_fkey"
-      columns: ["inspection_id"]
-      isOneToOne: false
-      referencedRelation: "inspections"
-      referencedColumns: ["id"]
-    },
-    {
-      foreignKeyName: "evidence_uploaded_by_fkey"
-      columns: ["uploaded_by"]
-      isOneToOne: false
-      referencedRelation: "profiles"
-      referencedColumns: ["id"]
-    },
-  ]
-}
+        Relationships: [
+          {
+            foreignKeyName: "evidence_inspection_id_fkey"
+            columns: ["inspection_id"]
+            isOneToOne: false
+            referencedRelation: "inspections"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "evidence_uploaded_by_fkey"
+            columns: ["uploaded_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       inspections: {
         Row: {
           accuracy: number | null
@@ -565,6 +691,63 @@ export type Database = {
             columns: ["project_id"]
             isOneToOne: false
             referencedRelation: "projects"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      role_transitions: {
+        Row: {
+          affected_projects: string[] | null
+          approved_by: string | null
+          created_at: string | null
+          effective_date: string | null
+          from_role: string
+          id: string
+          new_projects_only: boolean | null
+          status: string | null
+          to_role: string
+          transition_type: string | null
+          user_id: string
+        }
+        Insert: {
+          affected_projects?: string[] | null
+          approved_by?: string | null
+          created_at?: string | null
+          effective_date?: string | null
+          from_role: string
+          id?: string
+          new_projects_only?: boolean | null
+          status?: string | null
+          to_role: string
+          transition_type?: string | null
+          user_id: string
+        }
+        Update: {
+          affected_projects?: string[] | null
+          approved_by?: string | null
+          created_at?: string | null
+          effective_date?: string | null
+          from_role?: string
+          id?: string
+          new_projects_only?: boolean | null
+          status?: string | null
+          to_role?: string
+          transition_type?: string | null
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "role_transitions_approved_by_fkey"
+            columns: ["approved_by"]
+            isOneToOne: false
+            referencedRelation: "profiles"
+            referencedColumns: ["id"]
+          },
+          {
+            foreignKeyName: "role_transitions_user_id_fkey"
+            columns: ["user_id"]
+            isOneToOne: false
+            referencedRelation: "profiles"
             referencedColumns: ["id"]
           },
         ]

@@ -1,9 +1,6 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { supabase } from '@/lib/supabase/client'
-import { supabaseDatabase } from '@/lib/supabase/database'
-import { supabaseStorage } from '@/lib/supabase/storage'
 
 interface UploadProgress {
   loaded: number
@@ -110,73 +107,33 @@ export function useEvidenceUpload({
           )
         )
 
-        // Get current user
-        const {
-          data: { user },
-        } = await supabase.auth.getUser()
-        if (!user) {
-          throw new Error('User not authenticated')
+        // Prepare form data
+        const formData = new FormData()
+        formData.append('file', evidenceFile.file)
+        formData.append('inspectionId', inspectionId)
+        if (questionId) {
+          formData.append('questionId', questionId)
+        }
+        if (evidenceFile.gpsLocation) {
+          formData.append('latitude', evidenceFile.gpsLocation.latitude.toString())
+          formData.append('longitude', evidenceFile.gpsLocation.longitude.toString())
+          if (evidenceFile.gpsLocation.accuracy) {
+            formData.append('accuracy', evidenceFile.gpsLocation.accuracy.toString())
+          }
         }
 
-        // Generate unique filename
-        const fileExt = evidenceFile.file.name.split('.').pop()
-        const fileName = `${inspectionId}/${Date.now()}-${Math.random()}.${fileExt}`
+        // Upload via API route
+        const response = await fetch('/api/evidence/upload', {
+          method: 'POST',
+          body: formData,
+        })
 
-        // Upload to Supabase Storage with progress tracking
-        const { data: uploadData, error: uploadError } =
-          await supabaseStorage.uploadEvidence(
-            evidenceFile.file,
-            inspectionId,
-            user.id,
-            {
-              timestamp: new Date(),
-            }
-          )
-
-        if (uploadError) {
-          throw uploadError
+        if (!response.ok) {
+          const errorData = await response.json()
+          throw new Error(errorData.error || 'Upload failed')
         }
 
-        // Update status to processing
-        setFiles(prev =>
-          prev.map(f =>
-            f.id === evidenceFile.id
-              ? { ...f, status: 'processing' as const, progress: 100 }
-              : f
-          )
-        )
-
-        // Get public URL from upload result
-        const publicUrl = uploadData?.publicUrl
-        if (!publicUrl) {
-          throw new Error('Failed to get public URL')
-        }
-
-        // Create evidence record in database
-        const evidenceData = {
-          inspection_id: inspectionId,
-          uploaded_by: user.id,
-          filename: evidenceFile.file.name,
-          original_name: evidenceFile.file.name,
-          mime_type: evidenceFile.file.type,
-          file_size: evidenceFile.file.size,
-          storage_path: uploadData?.path || '',
-          public_url: publicUrl,
-          question_id: questionId, // NEW: Link to specific checklist question
-          timestamp: new Date().toISOString(),
-          metadata: {
-            uploadedAt: new Date().toISOString(),
-            fileId: evidenceFile.id,
-            linkedToQuestion: !!questionId,
-          },
-        }
-
-        const { data: evidence, error: dbError } =
-          await supabaseDatabase.createEvidence(evidenceData)
-
-        if (dbError) {
-          throw dbError
-        }
+        const result = await response.json()
 
         // Update status to completed
         setFiles(prev =>
@@ -185,15 +142,16 @@ export function useEvidenceUpload({
               ? {
                   ...f,
                   status: 'completed' as const,
-                  url: publicUrl,
-                  evidenceId: (evidence as any)?.id || '',
+                progress: 100,
+                url: result.data.url,
+                evidenceId: result.data.evidenceId,
                 }
               : f
           )
         )
 
         // Call success callback
-        onUploadComplete?.((evidence as any)?.id || '', publicUrl)
+        onUploadComplete?.(result.data.evidenceId, result.data.url)
 
         return true
       } catch (error) {
@@ -215,7 +173,7 @@ export function useEvidenceUpload({
         return false
       }
     },
-    [inspectionId, onUploadComplete, onUploadError]
+    [inspectionId, questionId, onUploadComplete, onUploadError]
   )
 
   // Upload all pending files

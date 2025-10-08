@@ -76,7 +76,7 @@ export default function ManagerDashboard() {
     }
 
     const myProjects = projects.length
-    const pendingApprovals = inspections.filter(i => i.status === 'IN_REVIEW').length
+    const pendingApprovals = inspections.filter(i => i.status === 'PENDING').length
     const overdueInspections = inspections.filter(i => {
       if (!i.due_date || !i.status) return false
       return new Date(i.due_date) < new Date() && !['APPROVED', 'REJECTED'].includes(i.status)
@@ -194,7 +194,24 @@ export default function ManagerDashboard() {
   }
 
   // Get pending inspections for approval
-  const pendingInspections = inspections.filter(i => i.status === 'IN_REVIEW').slice(0, 5)
+  const pendingInspections = inspections.filter(i => i.status === 'PENDING').slice(0, 5)
+
+  // Enrich projects with inspection counts and member data
+  const enrichedProjects = useMemo(() => {
+    return projects.map(project => {
+      // Count inspections for this project
+      const projectInspections = inspections.filter(i => i.project_id === project.id)
+      
+      // Get members from project_members relation
+      const members = (project as any).project_members || []
+      
+      return {
+        ...project,
+        inspections: projectInspections,
+        members: members,
+      }
+    })
+  }, [projects, inspections])
 
   return (
     <ResponsiveLayout>
@@ -334,9 +351,9 @@ export default function ManagerDashboard() {
           </CardHeader>
           <CardContent>
             <ProjectList 
-              projects={projects} 
+              projects={enrichedProjects} 
               loading={projectsLoading}
-              userProjects={projects.map(p => p.id)}
+              userProjects={enrichedProjects.map(p => p.id)}
               onProjectClick={handleProjectClick}
               onViewDetails={handleViewProjectDetails}
               onManageProject={handleManageProject}
@@ -359,19 +376,38 @@ export default function ManagerDashboard() {
             <CardContent>
               <div className="space-y-3">
                 {pendingInspections.map((inspection) => (
-                  <InspectionCard 
-                    key={inspection.id} 
-                    inspection={{
-                      id: inspection.id,
-                      title: inspection.title,
-                      status: inspection.status === 'IN_REVIEW' ? 'in-review' as const : 'pending' as const,
-                      priority: inspection.priority?.toLowerCase() as any || 'medium',
-                      dueDate: inspection.due_date || '',
-                      assignee: (inspection as any).profiles?.name || 'Unknown',
-                      project: (inspection as any).projects?.name || 'Unknown Project'
-                    }}
-                    onAction={handleInspectionAction}
-                  />
+                  <div key={inspection.id} className="p-4 border rounded-lg hover:bg-gray-50 transition-colors">
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <h3 className="font-medium text-gray-900">{inspection.title}</h3>
+                        <div className="flex items-center gap-2 mt-2 text-sm text-gray-600">
+                          <span>{(inspection as any).projects?.name || 'Unknown Project'}</span>
+                          <span>•</span>
+                          <span>{(inspection as any).profiles?.name || 'Unknown'}</span>
+                        </div>
+                        {inspection.submitted_at && (
+                          <p className="text-xs text-gray-500 mt-1">
+                            Submitted {new Date(inspection.submitted_at).toLocaleDateString()}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex flex-col items-end gap-2">
+                        <Badge className={
+                          inspection.priority === 'HIGH' ? 'bg-red-100 text-red-800' :
+                          inspection.priority === 'MEDIUM' ? 'bg-yellow-100 text-yellow-800' :
+                          'bg-green-100 text-green-800'
+                        }>
+                          {inspection.priority}
+                        </Badge>
+                        <Button
+                          onClick={() => router.push(`/inspections/${inspection.id}/review`)}
+                          size="sm"
+                        >
+                          Review
+                        </Button>
+                      </div>
+                    </div>
+                  </div>
                 ))}
               </div>
             </CardContent>

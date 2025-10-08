@@ -211,6 +211,16 @@ export function InspectionChecklist({
               />
               <span className="font-medium text-red-700">No / Fail</span>
             </label>
+            <label className="flex min-h-[44px] cursor-pointer items-center space-x-3">
+              <input
+                type="radio"
+                name={question.id}
+                checked={value === 'N/A'}
+                onChange={() => updateResponse(question.id, 'N/A')}
+                className="h-4 w-4 text-blue-600"
+              />
+              <span className="font-medium text-gray-700">Not Applicable</span>
+            </label>
           </div>
         )
 

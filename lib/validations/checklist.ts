@@ -80,6 +80,7 @@ export const ChecklistResponseSchema = z.object({
     z.number(),
     z.boolean(),
     z.array(z.string()),
+    z.literal('N/A'), // Not Applicable option for boolean questions
     z.null(),
   ]),
   evidence: z.array(z.string().uuid()).optional(), // Evidence IDs for file questions

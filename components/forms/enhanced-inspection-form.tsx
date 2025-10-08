@@ -24,7 +24,6 @@ import {
 import { Badge } from '@/components/ui/badge'
 import { useToast } from '@/lib/hooks/use-toast'
 import { useSupabaseAuth } from '@/lib/hooks/use-supabase-auth'
-import { supabaseDatabase } from '@/lib/supabase/database'
 import {
   Calendar,
   Clock,
@@ -40,7 +39,7 @@ const inspectionSchema = z.object({
   description: z.string().optional(),
   checklistId: z.string().min(1, 'Checklist is required'),
   assignedTo: z.string().min(1, 'Inspector assignment is required'),
-  priority: z.enum(['LOW', 'MEDIUM', 'HIGH', 'CRITICAL']),
+  priority: z.enum(['LOW', 'MEDIUM', 'HIGH']),
   dueDate: z.string().optional(),
   projectId: z.string().min(1, 'Project is required'),
 })
@@ -72,7 +71,12 @@ export function EnhancedInspectionForm({
   const form = useForm<InspectionFormData>({
     resolver: zodResolver(inspectionSchema),
     defaultValues: {
+      title: '',
+      description: '',
+      checklistId: '',
+      assignedTo: '',
       priority: 'MEDIUM',
+      dueDate: '',
       projectId: projectId || '',
       ...initialData,
     },
@@ -85,41 +89,51 @@ export function EnhancedInspectionForm({
 
       setIsLoading(true)
       try {
-        // Load checklists and projects
-        const [checklistResult, projectResult] = await Promise.all([
-          supabaseDatabase.getChecklists(),
+        // Load checklists and projects via API
+        const [checklistResponse, projectResponse] = await Promise.all([
+          fetch('/api/checklists'),
           profile.role === 'PROJECT_MANAGER'
-            ? supabaseDatabase.getProjectsForUser(profile.id)
-            : Promise.resolve({ data: [] }),
+            ? fetch('/api/projects')
+            : Promise.resolve(null),
         ])
 
-        if (checklistResult.data) setChecklists(checklistResult.data)
-        if (projectResult.data) setProjects(projectResult.data)
+        if (checklistResponse.ok) {
+          const checklistData = await checklistResponse.json()
+          setChecklists(checklistData)
+        }
+
+        if (projectResponse?.ok) {
+          const projectData = await projectResponse.json()
+          setProjects(projectData.projects || [])
+        }
 
         // Load inspectors for the selected project
         if (projectId || form.watch('projectId')) {
           const selectedProjectId = projectId || form.watch('projectId')
-          const projectResult =
-            await supabaseDatabase.getProjectById(selectedProjectId)
+          const projectResponse = await fetch(
+            `/api/projects/${selectedProjectId}`
+          )
 
-          if ((projectResult.data as any)?.project_members) {
-            const projectInspectors = (
-              projectResult.data as any
-            ).project_members
-              .filter(
-                (member: any) =>
-                  member.profiles &&
-                  (member.profiles.role === 'INSPECTOR' ||
-                    member.role === 'INSPECTOR')
-              )
-              .map((member: any) => ({
-                id: member.profiles.id,
-                name: member.profiles.name,
-                email: member.profiles.email,
-                role: member.profiles.role,
-              }))
+          if (projectResponse.ok) {
+            const projectData = await projectResponse.json()
 
-            setInspectors(projectInspectors)
+            if (projectData?.project_members) {
+              const projectInspectors = projectData.project_members
+                .filter(
+                  (member: any) =>
+                    member.profiles &&
+                    (member.profiles.role === 'INSPECTOR' ||
+                      member.role === 'INSPECTOR')
+                )
+                .map((member: any) => ({
+                  id: member.profiles.id,
+                  name: member.profiles.name,
+                  email: member.profiles.email,
+                  role: member.profiles.role,
+                }))
+
+              setInspectors(projectInspectors)
+            }
           }
         }
       } catch (error) {
@@ -148,25 +162,32 @@ export function EnhancedInspectionForm({
       }
 
       try {
-        const projectResult =
-          await supabaseDatabase.getProjectById(selectedProjectId)
+        const projectResponse = await fetch(
+          `/api/projects/${selectedProjectId}`
+        )
 
-        if ((projectResult.data as any)?.project_members) {
-          const projectInspectors = (projectResult.data as any).project_members
-            .filter(
-              (member: any) =>
-                member.profiles &&
-                (member.profiles.role === 'INSPECTOR' ||
-                  member.role === 'INSPECTOR')
-            )
-            .map((member: any) => ({
-              id: member.profiles.id,
-              name: member.profiles.name,
-              email: member.profiles.email,
-              role: member.profiles.role,
-            }))
+        if (projectResponse.ok) {
+          const projectData = await projectResponse.json()
 
-          setInspectors(projectInspectors)
+          if (projectData?.project_members) {
+            const projectInspectors = projectData.project_members
+              .filter(
+                (member: any) =>
+                  member.profiles &&
+                  (member.profiles.role === 'INSPECTOR' ||
+                    member.role === 'INSPECTOR')
+              )
+              .map((member: any) => ({
+                id: member.profiles.id,
+                name: member.profiles.name,
+                email: member.profiles.email,
+                role: member.profiles.role,
+              }))
+
+            setInspectors(projectInspectors)
+          } else {
+            setInspectors([])
+          }
         } else {
           setInspectors([])
         }
@@ -185,18 +206,30 @@ export function EnhancedInspectionForm({
     setIsSubmitting(true)
     try {
       // Create inspection via API
+      // Note: Status will be set to 'DRAFT' by the backend
       const response = await fetch('/api/inspections', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           ...data,
-          createdBy: profile.id,
-          status: 'ASSIGNED',
+          // Status is automatically set to DRAFT by the backend
         }),
       })
 
       if (!response.ok) {
-        throw new Error('Failed to create inspection')
+        const errorData = await response.json().catch(() => ({}))
+        console.error('API Error:', {
+          status: response.status,
+          statusText: response.statusText,
+          errorData,
+          requestBody: data,
+        })
+        // Get error message from response
+        const errorMessage =
+          errorData.error ||
+          errorData.message ||
+          `Failed to create inspection (${response.status})`
+        throw new Error(errorMessage)
       }
 
       const result = await response.json()
@@ -215,9 +248,13 @@ export function EnhancedInspectionForm({
       form.reset()
     } catch (error) {
       console.error('Failed to create inspection:', error)
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : 'Failed to create inspection. Please try again.'
       toast({
         title: 'Creation Failed',
-        description: 'Failed to create inspection. Please try again.',
+        description: errorMessage,
         variant: 'destructive',
       })
     } finally {
@@ -227,10 +264,8 @@ export function EnhancedInspectionForm({
 
   const getPriorityColor = (priority: string) => {
     switch (priority) {
-      case 'CRITICAL':
-        return 'bg-red-100 text-red-800'
       case 'HIGH':
-        return 'bg-orange-100 text-orange-800'
+        return 'bg-red-100 text-red-800'
       case 'MEDIUM':
         return 'bg-yellow-100 text-yellow-800'
       case 'LOW':
@@ -274,7 +309,7 @@ export function EnhancedInspectionForm({
                 Project *
               </label>
               <Select
-                value={form.watch('projectId')}
+                value={form.watch('projectId') || ''}
                 onValueChange={value => form.setValue('projectId', value)}
               >
                 <SelectTrigger className="h-11">
@@ -334,7 +369,7 @@ export function EnhancedInspectionForm({
                 Checklist *
               </label>
               <Select
-                value={form.watch('checklistId')}
+                value={form.watch('checklistId') || ''}
                 onValueChange={value => form.setValue('checklistId', value)}
               >
                 <SelectTrigger className="h-11">
@@ -362,7 +397,7 @@ export function EnhancedInspectionForm({
                 Assign To *
               </label>
               <Select
-                value={form.watch('assignedTo')}
+                value={form.watch('assignedTo') || ''}
                 onValueChange={value => form.setValue('assignedTo', value)}
               >
                 <SelectTrigger className="h-11">
@@ -381,9 +416,9 @@ export function EnhancedInspectionForm({
                       </SelectItem>
                     ))
                   ) : (
-                    <SelectItem value="" disabled>
+                    <div className="px-2 py-1.5 text-sm text-gray-500">
                       No inspectors available for this project
-                    </SelectItem>
+                    </div>
                   )}
                 </SelectContent>
               </Select>
@@ -404,14 +439,14 @@ export function EnhancedInspectionForm({
                 Priority
               </label>
               <Select
-                value={form.watch('priority')}
+                value={form.watch('priority') || 'MEDIUM'}
                 onValueChange={(value: any) => form.setValue('priority', value)}
               >
                 <SelectTrigger className="h-11">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  {['LOW', 'MEDIUM', 'HIGH', 'CRITICAL'].map(priority => (
+                  {['LOW', 'MEDIUM', 'HIGH'].map(priority => (
                     <SelectItem key={priority} value={priority}>
                       <div className="flex items-center gap-2">
                         <Badge className={getPriorityColor(priority)}>

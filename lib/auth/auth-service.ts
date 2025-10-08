@@ -81,6 +81,27 @@ async function createSupabaseServerClient() {
   )
 }
 
+// Create Supabase client for middleware using request cookies
+function createSupabaseMiddlewareClient(request: NextRequest) {
+  return createServerClient<Database>(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    {
+      cookies: {
+        get(name: string) {
+          return request.cookies.get(name)?.value
+        },
+        set() {
+          // Cannot set cookies in middleware during auth check
+        },
+        remove() {
+          // Cannot remove cookies in middleware during auth check
+        },
+      },
+    }
+  )
+}
+
 // Create server-side Supabase client with service role for database operations
 function createSupabaseServiceClient() {
   return createServerClient<Database>(
@@ -115,7 +136,8 @@ export class AuthService {
 
   async authenticate(request: NextRequest): Promise<AuthResult> {
     try {
-      const supabaseServer = await createSupabaseServerClient()
+      // Use middleware-compatible client
+      const supabaseServer = createSupabaseMiddlewareClient(request)
 
       // Get the current user session
       const { data: { user }, error: userError } = await supabaseServer.auth.getUser()

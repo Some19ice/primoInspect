@@ -1,149 +1,134 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { withRBAC, AuthenticatedRequest } from '@/lib/auth/rbac-middleware'
-import { logAuditEvent } from '@/lib/auth/auth-service'
-import { secureStorageService } from '@/lib/storage/secure-storage'
+import { createClient } from '@/lib/supabase/server'
+import { supabaseDatabase } from '@/lib/supabase/database'
 
-export const POST = withRBAC()(async (request: AuthenticatedRequest) => {
+const EVIDENCE_BUCKET = 'evidence-files'
+const MAX_FILE_SIZE = 50 * 1024 * 1024 // 50MB
+
+export async function POST(request: NextRequest) {
   try {
+    const supabase = createClient()
+
+    // Check authentication
+    const {
+      data: { user },
+      error: authError,
+    } = await supabase.auth.getUser()
+
+    if (authError || !user) {
+      return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+    }
+
+    // Parse form data
     const formData = await request.formData()
     const file = formData.get('file') as File
     const inspectionId = formData.get('inspectionId') as string
-    const latitude = formData.get('latitude') as string
-    const longitude = formData.get('longitude') as string
-    const accuracy = formData.get('accuracy') as string
+    const questionId = formData.get('questionId') as string | null
+    const latitude = formData.get('latitude') as string | null
+    const longitude = formData.get('longitude') as string | null
+    const accuracy = formData.get('accuracy') as string | null
 
     if (!file || !inspectionId) {
       return NextResponse.json(
-        {
-          error: {
-            code: 'VALIDATION_ERROR',
-            message: 'File and inspectionId are required',
-          },
-        },
+        { error: 'Missing required fields: file, inspectionId' },
         { status: 400 }
       )
     }
 
-    // Validate file size and type
-    const maxSizeBytes = 50 * 1024 * 1024 // 50MB
-    if (file.size > maxSizeBytes) {
+    // Validate file size
+    if (file.size > MAX_FILE_SIZE) {
       return NextResponse.json(
-        {
-          error: {
-            code: 'FILE_TOO_LARGE',
-            message: 'File size must be less than 50MB',
-          },
-        },
+        { error: `File size exceeds 50MB limit. Current size: ${Math.round(file.size / 1024 / 1024)}MB` },
         { status: 400 }
       )
     }
 
-    const allowedTypes = [
-      'image/jpeg',
-      'image/jpg',
-      'image/png',
-      'image/gif',
-      'video/mp4',
-      'video/quicktime',
-      'application/pdf',
-    ]
+    // Generate unique file path
+    const fileExtension = file.name.split('.').pop()
+    const fileName = `${inspectionId}/${user.id}/${Date.now()}-${Math.random().toString(36).substring(2, 11)}.${fileExtension}`
+    const filePath = `evidence/${fileName}`
 
-    if (!allowedTypes.includes(file.type)) {
+    // Upload file to Supabase Storage using server client
+    const { data: uploadData, error: uploadError } = await supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .upload(filePath, file, {
+        cacheControl: '3600',
+        upsert: false,
+        contentType: file.type,
+      })
+
+    if (uploadError) {
+      console.error('Upload error:', uploadError)
       return NextResponse.json(
-        {
-          error: {
-            code: 'INVALID_FILE_TYPE',
-            message: 'File type not supported',
-          },
-        },
-        { status: 400 }
+        { error: uploadError.message || 'Upload failed' },
+        { status: 500 }
       )
     }
 
-    // Use secure storage service for upload with validation
-    const result = await secureStorageService.uploadEvidenceFile(
-      request.user.id,
-      inspectionId,
-      file,
-      {
-        latitude: latitude ? parseFloat(latitude) : undefined,
-        longitude: longitude ? parseFloat(longitude) : undefined,
-        accuracy: accuracy ? parseFloat(accuracy) : undefined,
-        timestamp: new Date(),
-      }
-    )
+    // Get public URL for the uploaded file
+    const { data: urlData } = supabase.storage
+      .from(EVIDENCE_BUCKET)
+      .getPublicUrl(filePath)
 
-    if (!result.success) {
-      return NextResponse.json(
-        {
-          error: {
-            code: 'UPLOAD_FAILED',
-            message: result.error || 'Failed to upload evidence',
-          },
-        },
-        { status: 400 }
-      )
-    }
+    const publicUrl = urlData.publicUrl
 
-    // Log audit event
-    await logAuditEvent(
-      'EVIDENCE',
-      result.data!.id,
-      'UPLOADED',
-      request.user.id,
-      {
-        inspectionId,
-        fileName: file.name,
-        fileSize: file.size,
-        fileType: file.type,
-        hasLocation: !!(latitude && longitude),
+    // Create evidence record in database
+    const evidenceData = {
+      inspection_id: inspectionId,
+      uploaded_by: user.id,
+      filename: file.name,
+      original_name: file.name,
+      mime_type: file.type,
+      file_size: file.size,
+      storage_path: uploadData.path,
+      public_url: publicUrl,
+      question_id: questionId || undefined,
+      latitude: latitude ? parseFloat(latitude) : undefined,
+      longitude: longitude ? parseFloat(longitude) : undefined,
+      accuracy: accuracy ? parseFloat(accuracy) : undefined,
+      timestamp: new Date().toISOString(),
+      metadata: {
+        uploadedAt: new Date().toISOString(),
+        linkedToQuestion: !!questionId,
+        contentType: file.type,
+        originalSize: file.size,
       },
-      request
-    )
+    }
+
+    console.log('[Evidence Upload] Creating evidence record:', {
+      inspectionId,
+      questionId,
+      filename: file.name,
+      size: file.size,
+      path: uploadData.path,
+    })
+
+    const { data: evidence, error: dbError } =
+      await supabaseDatabase.createEvidence(evidenceData)
+
+    if (dbError) {
+      console.error('Database error:', dbError)
+      // Try to clean up uploaded file
+      await supabase.storage.from(EVIDENCE_BUCKET).remove([filePath])
+      return NextResponse.json(
+        { error: 'Failed to create evidence record' },
+        { status: 500 }
+      )
+    }
 
     return NextResponse.json({
       success: true,
-      evidence: {
-        id: result.data!.id,
-        filename: result.data!.filename,
-        originalName: result.data!.original_name,
-        mimeType: result.data!.mime_type,
-        fileSize: result.data!.file_size,
-        url: result.data!.url,
-        verified: result.data!.verified,
-        timestamp: result.data!.timestamp,
-        location: latitude && longitude ? {
-          latitude: parseFloat(latitude),
-          longitude: parseFloat(longitude),
-          accuracy: accuracy ? parseFloat(accuracy) : undefined,
-        } : null,
-        createdAt: result.data!.created_at,
+      data: {
+        evidenceId: (evidence as any)?.id,
+        url: publicUrl,
+        path: uploadData.path,
       },
     })
-
   } catch (error) {
-    console.error('Upload error:', error)
-    
-    // Log failed upload attempt
-    await logAuditEvent(
-      'EVIDENCE',
-      'upload_failed',
-      'UPLOAD_FAILED',
-      request.user.id,
-      {
-        error: error instanceof Error ? error.message : 'Unknown error',
-      },
-      request
-    )
-
+    console.error('Evidence upload error:', error)
     return NextResponse.json(
-      {
-        error: {
-          code: 'INTERNAL_ERROR',
-          message: 'Internal server error during upload',
-        },
-      },
+      { error: error instanceof Error ? error.message : 'Upload failed' },
       { status: 500 }
     )
   }
-})
+}

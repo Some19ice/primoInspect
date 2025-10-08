@@ -976,7 +976,8 @@ export class SupabaseDatabaseService {
             verified,
             latitude,
             longitude,
-            timestamp
+            timestamp,
+            question_id
           )
         `
         )
@@ -1090,19 +1091,59 @@ export class SupabaseDatabaseService {
   }) {
     try {
       const supabaseService = createServiceRoleClient()
+
+      // Prepare evidence insert with all required fields
+      const insertData = {
+        inspection_id: evidenceData.inspection_id,
+        uploaded_by: evidenceData.uploaded_by,
+        filename: evidenceData.filename,
+        original_name: evidenceData.original_name,
+        mime_type: evidenceData.mime_type,
+        file_size: evidenceData.file_size,
+        storage_path: evidenceData.storage_path,
+        url: evidenceData.public_url, // Required field
+        public_url: evidenceData.public_url, // Additional field
+        timestamp: evidenceData.timestamp,
+        verified: false,
+        // Optional fields
+        ...(evidenceData.question_id && {
+          question_id: evidenceData.question_id,
+        }),
+        ...(evidenceData.latitude !== undefined && {
+          latitude: evidenceData.latitude,
+        }),
+        ...(evidenceData.longitude !== undefined && {
+          longitude: evidenceData.longitude,
+        }),
+        ...(evidenceData.accuracy !== undefined && {
+          accuracy: evidenceData.accuracy,
+        }),
+        ...(evidenceData.metadata && { metadata: evidenceData.metadata }),
+      }
+
+      console.log('[Database] Creating evidence record with data:', {
+        inspection_id: insertData.inspection_id,
+        question_id: insertData.question_id,
+        filename: insertData.filename,
+        has_url: !!insertData.url,
+        has_storage_path: !!insertData.storage_path,
+      })
+
       const { data, error } = await supabaseService
-        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
-        .insert({
-          ...evidenceData,
-          url: evidenceData.public_url, // Map for backward compatibility
-          verified: false,
-        } as any)
+        .from('evidence')
+        .insert(insertData as any)
         .select()
         .single()
 
+      if (error) {
+        console.error('[Database] Error creating evidence:', error)
+      } else {
+        console.log('[Database] Evidence created successfully:', data?.id)
+      }
+
       return { data, error }
     } catch (error) {
-      console.error('Error creating evidence:', error)
+      console.error('[Database] Exception creating evidence:', error)
       return { data: null, error }
     }
   }
@@ -1112,7 +1153,7 @@ export class SupabaseDatabaseService {
       // Use service role client for server-side operations
       const supabaseService = createServiceRoleClient()
       const { data, error } = await supabaseService
-        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
+        .from('evidence')
         .select(
           `
           *,
@@ -1136,7 +1177,7 @@ export class SupabaseDatabaseService {
   async getEvidenceForUser(userId: string) {
     try {
       const { data, error } = await supabase
-        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
+        .from('evidence')
         .select('*')
         .eq('uploaded_by', userId)
         .order('created_at', { ascending: false })
@@ -1151,7 +1192,7 @@ export class SupabaseDatabaseService {
   async getTotalEvidenceSizeForInspection(inspectionId: string): Promise<number> {
     try {
       const { data, error } = await supabase
-        .from('vidence' as any) // Note: typo in generated types, should be 'evidence'
+        .from('evidence')
         .select('file_size')
         .eq('inspection_id', inspectionId)
 

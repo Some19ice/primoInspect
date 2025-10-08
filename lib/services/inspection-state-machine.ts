@@ -17,8 +17,10 @@ export interface InspectionData {
   checklists?: {
     questions: Array<{
       id: string
+      question: string
       required: boolean
       type: string
+      evidenceRequired?: boolean
     }>
   }
   evidence?: Array<{
@@ -30,7 +32,10 @@ export interface InspectionData {
 
 export class InspectionStateMachine {
   // Define valid status transitions
-  private static readonly TRANSITIONS: Record<InspectionStatus, InspectionStatus[]> = {
+  private static readonly TRANSITIONS: Record<
+    InspectionStatus,
+    InspectionStatus[]
+  > = {
     DRAFT: ['PENDING'],
     PENDING: ['IN_REVIEW', 'DRAFT'], // Can go back to draft
     IN_REVIEW: ['APPROVED', 'REJECTED', 'PENDING'],
@@ -66,9 +71,7 @@ export class InspectionStateMachine {
 
     // Check if transition is allowed
     if (!this.canTransition(inspection.status, toStatus)) {
-      errors.push(
-        `Cannot transition from ${inspection.status} to ${toStatus}`
-      )
+      errors.push(`Cannot transition from ${inspection.status} to ${toStatus}`)
       return { valid: false, errors }
     }
 
@@ -76,21 +79,21 @@ export class InspectionStateMachine {
     switch (toStatus) {
       case 'PENDING':
         return this.validateSubmission(inspection)
-      
+
       case 'IN_REVIEW':
         // Manager can start review from pending
         if (inspection.status !== 'PENDING') {
           errors.push('Can only review inspections in PENDING status')
         }
         break
-      
+
       case 'APPROVED':
         // Must be in review
         if (inspection.status !== 'IN_REVIEW') {
           errors.push('Can only approve inspections in IN_REVIEW status')
         }
         break
-      
+
       case 'REJECTED':
         // Must be in review
         if (inspection.status !== 'IN_REVIEW') {
@@ -98,7 +101,9 @@ export class InspectionStateMachine {
         }
         // Check escalation threshold
         if ((inspection.rejection_count || 0) >= this.MAX_REJECTIONS) {
-          errors.push('Inspection has reached maximum rejections - requires escalation')
+          errors.push(
+            'Inspection has reached maximum rejections - requires escalation'
+          )
         }
         break
     }
@@ -126,7 +131,12 @@ export class InspectionStateMachine {
     const requiredQuestions = questions.filter(q => q.required)
     const unansweredRequired = requiredQuestions.filter(q => {
       const response = responses[q.id]
-      return !response || response.value === undefined || response.value === null || response.value === ''
+      return (
+        !response ||
+        response.value === undefined ||
+        response.value === null ||
+        response.value === ''
+      )
     })
 
     if (unansweredRequired.length > 0) {
@@ -135,19 +145,15 @@ export class InspectionStateMachine {
       )
     }
 
-    // Validate evidence for questions that require it
+    // Validate evidence for questions that explicitly require it
     const questionsRequiringEvidence = questions.filter(
-      q => q.type === 'boolean' && q.required
+      q => q.evidenceRequired === true
     )
-    
+
     questionsRequiringEvidence.forEach(question => {
       const hasEvidence = evidence.some(e => e.question_id === question.id)
       if (!hasEvidence) {
-        const response = responses[question.id]
-        // If answer is "fail" (false), evidence is typically required
-        if (response?.value === false) {
-          errors.push(`Evidence required for failed check: ${question.id}`)
-        }
+        errors.push(`Evidence required for question: "${question.question}"`)
       }
     })
 
@@ -172,32 +178,32 @@ export class InspectionStateMachine {
       case 'DRAFT':
         return {
           action: 'SUBMIT',
-          description: 'Complete and submit for review'
+          description: 'Complete and submit for review',
         }
       case 'PENDING':
         return {
           action: 'WAIT',
-          description: 'Waiting for manager review'
+          description: 'Waiting for manager review',
         }
       case 'IN_REVIEW':
         return {
           action: 'WAIT',
-          description: 'Under review by manager'
+          description: 'Under review by manager',
         }
       case 'APPROVED':
         return {
           action: 'COMPLETE',
-          description: 'Inspection approved - no action needed'
+          description: 'Inspection approved - no action needed',
         }
       case 'REJECTED':
         return {
           action: 'REVISE',
-          description: 'Address feedback and resubmit'
+          description: 'Address feedback and resubmit',
         }
       default:
         return {
           action: 'UNKNOWN',
-          description: 'Unknown status'
+          description: 'Unknown status',
         }
     }
   }
@@ -210,7 +216,7 @@ export class InspectionStateMachine {
 
     const questions = inspection.checklists.questions
     const responses = inspection.responses || {}
-    
+
     if (questions.length === 0) return 0
 
     const answeredCount = questions.filter(q => {

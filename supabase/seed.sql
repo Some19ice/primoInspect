@@ -237,7 +237,7 @@ INSERT INTO inspections (id, project_id, checklist_id, assigned_to, title, descr
   ('insp-1003', 'proj-1111-1111-1111-111111111111', 'check-1111-1111-1111-111111111111', '88888888-8888-8888-8888-888888888888', 'Inverter Station 1 Commissioning', 'Pre-commissioning inspection of primary inverter station', 'IN_REVIEW', 'HIGH', NOW() + INTERVAL '2 days', 33.4474, -112.0730, 6.1, 'Phoenix, AZ - Inverter Station 1', '{"sp-001": true, "sp-002": 478, "sp-003": true, "sp-004": "All systems nominal", "sp-005": 5}', 0, NOW() - INTERVAL '2 days', NOW() - INTERVAL '4 hours', NOW() - INTERVAL '4 hours', NULL),
   
   -- Current assignments
-  ('insp-1004', 'proj-1111-1111-1111-111111111111', 'check-1111-1111-1111-111111111111', '66666666-6666-6666-6666-666666666666', 'Array Section C1-C6 Final Check', 'Final verification before grid connection', 'ASSIGNED', 'HIGH', NOW() + INTERVAL '1 day', 33.4464, -112.0720, NULL, 'Phoenix, AZ - Array Section C', '{}', 0, NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', NULL, NULL);
+  ('insp-1004', 'proj-1111-1111-1111-111111111111', 'check-1111-1111-1111-111111111111', '66666666-6666-6666-6666-666666666666', 'Array Section C1-C6 Final Check', 'Final verification before grid connection', 'DRAFT', 'HIGH', NOW() + INTERVAL '1 day', 33.4464, -112.0720, NULL, 'Phoenix, AZ - Array Section C', '{}', 0, NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', NULL, NULL);
 
 -- Coastal Wind Project Inspections
 INSERT INTO inspections (id, project_id, checklist_id, assigned_to, title, description, status, priority, due_date, latitude, longitude, accuracy, address, responses, rejection_count, created_at, updated_at, submitted_at, completed_at) VALUES
@@ -251,7 +251,7 @@ INSERT INTO inspections (id, project_id, checklist_id, assigned_to, title, descr
 INSERT INTO inspections (id, project_id, checklist_id, assigned_to, title, description, status, priority, due_date, latitude, longitude, accuracy, address, responses, rejection_count, created_at, updated_at, submitted_at, completed_at) VALUES
   ('insp-3001', 'proj-3333-3333-3333-333333333333', 'check-3333-3333-3333-333333333333', 'bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb', 'Battery Bank 1 Installation Check', 'Initial installation verification of primary battery bank', 'APPROVED', 'HIGH', NOW() - INTERVAL '5 days', 37.7749, -122.4194, 4.2, 'San Francisco, CA - Battery Facility', '{"bs-001": 22, "bs-002": true, "bs-003": 85, "bs-004": true}', 0, NOW() - INTERVAL '7 days', NOW() - INTERVAL '3 days', NOW() - INTERVAL '5 days', NOW() - INTERVAL '3 days'),
   
-  ('insp-3002', 'proj-3333-3333-3333-333333333333', 'check-1111-1111-1111-111111111111', '77777777-7777-7777-7777-777777777777', 'Rooftop Array Community Center', 'Solar installation on community center rooftop', 'ASSIGNED', 'MEDIUM', NOW() + INTERVAL '2 days', 37.7759, -122.4204, NULL, 'San Francisco, CA - Community Center', '{}', 0, NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', NULL, NULL);
+  ('insp-3002', 'proj-3333-3333-3333-333333333333', 'check-1111-1111-1111-111111111111', '77777777-7777-7777-7777-777777777777', 'Rooftop Array Community Center', 'Solar installation on community center rooftop', 'DRAFT', 'MEDIUM', NOW() + INTERVAL '2 days', 37.7759, -122.4204, NULL, 'San Francisco, CA - Community Center', '{}', 0, NOW() - INTERVAL '1 day', NOW() - INTERVAL '1 day', NULL, NULL);
 
 -- =======================
 -- EVIDENCE RECORDS

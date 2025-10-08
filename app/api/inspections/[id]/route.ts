@@ -50,24 +50,36 @@ export async function PUT(
     const { id } = await params
     const body = await request.json()
 
+    console.log('Updating inspection:', id, 'with data:', JSON.stringify(body).substring(0, 200))
+
     // Use the database service which should handle RLS properly
     const result = await supabaseDatabase.updateInspection(id, body)
     
     if (result.error) {
       console.error('Error updating inspection:', result.error)
+      console.error('Error details:', JSON.stringify(result.error, null, 2))
       return NextResponse.json(
-        { error: 'Failed to update inspection' },
+        { 
+          error: 'Failed to update inspection',
+          details: result.error.message || String(result.error)
+        },
         { status: 500 }
       )
     }
 
+    console.log('Successfully updated inspection:', id)
+
     await logAuditEvent('INSPECTION', id, 'UPDATED', user!.id, body)
     
     return NextResponse.json(result.data)
-  } catch (error) {
+  } catch (error: any) {
     console.error('Error in PUT /api/inspections/[id]:', error)
+    console.error('Error stack:', error.stack)
     return NextResponse.json(
-      { error: 'Failed to update inspection' },
+      { 
+        error: 'Failed to update inspection',
+        details: error.message || String(error)
+      },
       { status: 500 }
     )
   }

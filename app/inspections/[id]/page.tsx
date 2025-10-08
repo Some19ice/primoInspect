@@ -5,7 +5,7 @@ import { useState, useEffect } from 'react'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
 import { Badge } from '@/components/ui/badge'
-import { ArrowLeft, FileText, User, Calendar, MapPin, CheckCircle, Image as ImageIcon, Clock, AlertTriangle } from 'lucide-react'
+import { ArrowLeft, FileText, User, Calendar, MapPin, CheckCircle, XCircle, Image as ImageIcon, Clock, AlertTriangle } from 'lucide-react'
 import { useSupabaseAuth } from '@/lib/hooks/use-supabase-auth'
 import { useToast } from '@/lib/hooks/use-toast'
 
@@ -311,20 +311,14 @@ export default function InspectionDetailPage() {
                   )}
                   
                   {inspection.status === 'PENDING' && (
-                    <div className="p-4 bg-yellow-50 border border-yellow-200 rounded-lg">
+                    <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-start gap-3">
-                        <FileText className="h-5 w-5 text-yellow-600 mt-0.5" />
+                        <Clock className="h-5 w-5 text-blue-600 mt-0.5" />
                         <div className="flex-1">
-                          <h4 className="font-medium text-yellow-900">In Progress</h4>
-                          <p className="text-sm text-yellow-700 mt-1">
-                            Continue filling out the inspection checklist.
+                          <h4 className="font-medium text-blue-900">Submitted for Review</h4>
+                          <p className="text-sm text-blue-700 mt-1">
+                            Your inspection has been submitted and is waiting for manager review.
                           </p>
-                          <Button 
-                            onClick={() => router.push(`/inspections/${inspection.id}/execute`)}
-                            className="mt-3"
-                          >
-                            Continue Inspection
-                          </Button>
                         </div>
                       </div>
                     </div>
@@ -382,7 +376,7 @@ export default function InspectionDetailPage() {
               )}
 
               {/* Manager Actions */}
-              {profile?.role === 'PROJECT_MANAGER' && profile?.id !== inspection.assigned_to && (
+              {(profile?.role === 'PROJECT_MANAGER' || profile?.role === 'EXECUTIVE') && profile?.id !== inspection.assigned_to && (
                 <div className="space-y-3">
                   {inspection.status === 'DRAFT' && (
                     <div className="p-4 bg-gray-50 border border-gray-200 rounded-lg">
@@ -398,7 +392,8 @@ export default function InspectionDetailPage() {
                     </div>
                   )}
 
-                  {inspection.status === 'IN_REVIEW' && (
+
+                  {inspection.status === 'PENDING' && (
                     <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg">
                       <div className="flex items-start gap-3">
                         <FileText className="h-5 w-5 text-blue-600 mt-0.5" />
@@ -410,10 +405,61 @@ export default function InspectionDetailPage() {
                           <div className="flex gap-2 mt-3">
                             <Button 
                               onClick={() => router.push(`/inspections/${inspection.id}/review`)}
+                              size="lg"
                             >
                               Review Inspection
                             </Button>
                           </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'IN_REVIEW' && (
+                    <div className="p-4 bg-purple-50 border border-purple-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <Clock className="h-5 w-5 text-purple-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-purple-900">Under Review</h4>
+                          <p className="text-sm text-purple-700 mt-1">
+                            You are currently reviewing this inspection.
+                          </p>
+                          <div className="flex gap-2 mt-3">
+                            <Button 
+                              onClick={() => router.push(`/inspections/${inspection.id}/review`)}
+                              size="lg"
+                            >
+                              Continue Review
+                            </Button>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'APPROVED' && (
+                    <div className="p-4 bg-green-50 border border-green-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <CheckCircle className="h-5 w-5 text-green-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-green-900">Approved</h4>
+                          <p className="text-sm text-green-700 mt-1">
+                            This inspection has been approved and is complete.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  )}
+
+                  {inspection.status === 'REJECTED' && (
+                    <div className="p-4 bg-red-50 border border-red-200 rounded-lg">
+                      <div className="flex items-start gap-3">
+                        <XCircle className="h-5 w-5 text-red-600 mt-0.5" />
+                        <div className="flex-1">
+                          <h4 className="font-medium text-red-900">Rejected</h4>
+                          <p className="text-sm text-red-700 mt-1">
+                            This inspection was rejected and has been returned to {inspection.profiles?.name} for revision.
+                          </p>
                         </div>
                       </div>
                     </div>
