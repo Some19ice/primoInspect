@@ -197,7 +197,7 @@ export class SupabaseDatabaseService {
 
       const projectIds = memberProjects.map((mp: any) => mp.project_id)
 
-      // Get projects with members
+      // Get projects with members and inspections
       const {
         data: projects,
         error: projectsError,
@@ -217,6 +217,15 @@ export class SupabaseDatabaseService {
               email,
               role
             )
+          ),
+          inspections(
+            id,
+            title,
+            status,
+            priority,
+            due_date,
+            created_at,
+            updated_at
           )
         `,
             { count: 'exact' }
